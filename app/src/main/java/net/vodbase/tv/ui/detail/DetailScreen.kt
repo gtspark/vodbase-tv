@@ -5,13 +5,15 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -156,21 +158,29 @@ fun DetailScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     // Action buttons - vertical stack
+                    // If resume position exists, make Resume the primary button
+                    val hasResume = viewModel.resumeTime > 30
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActionButton(
-                            text = "Play",
-                            onClick = { onPlay(0f) },
-                            isBright = true,
-                            theme = theme
-                        )
-
-                        if (viewModel.resumeTime > 30) {
+                        if (hasResume) {
                             val mins = (viewModel.resumeTime / 60).toInt()
                             val secs = (viewModel.resumeTime % 60).toInt()
                             ActionButton(
                                 text = "Resume from ${mins}:${"%02d".format(secs)}",
                                 onClick = { onPlay(viewModel.resumeTime.toFloat()) },
+                                isBright = true,
+                                theme = theme
+                            )
+                            ActionButton(
+                                text = "Play from Start",
+                                onClick = { onPlay(0f) },
                                 isBright = false,
+                                theme = theme
+                            )
+                        } else {
+                            ActionButton(
+                                text = "Play",
+                                onClick = { onPlay(0f) },
+                                isBright = true,
                                 theme = theme
                             )
                         }
@@ -197,7 +207,8 @@ fun ActionButton(
     theme: ChannelTheme,
     enabled: Boolean = true
 ) {
-    var isFocused by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
     val borderAlpha by animateFloatAsState(
         targetValue = if (isFocused) 1f else 0f,
         animationSpec = tween(durationMillis = 200),
@@ -227,8 +238,13 @@ fun ActionButton(
                 color = theme.focusRing.copy(alpha = borderAlpha),
                 shape = theme.shape
             )
-            .onFocusChanged { isFocused = it.isFocused }
-            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
+            .then(
+                if (enabled) Modifier.clickable(
+                    interactionSource = interactionSource,
+                    indication = null
+                ) { onClick() }
+                else Modifier.focusable(interactionSource = interactionSource)
+            )
             .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.CenterStart
     ) {

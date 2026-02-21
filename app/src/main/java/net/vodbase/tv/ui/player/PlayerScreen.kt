@@ -35,13 +35,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.ByteArrayDataSource
-import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
-import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
@@ -136,15 +133,7 @@ class PlayerViewModel @Inject constructor(
                     .setAllowCrossProtocolRedirects(true)
 
                 val sourceType: String
-                if (stream.videoDashManifest != null && stream.audioDashManifest != null) {
-                    // DASH: synthetic manifest from progressive URLs = segment-based fast seeking
-                    val videoDashSource = DashMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(createDashMediaItem(stream.videoDashManifest))
-                    val audioDashSource = DashMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(createDashMediaItem(stream.audioDashManifest))
-                    exoPlayer.setMediaSource(MergingMediaSource(videoDashSource, audioDashSource))
-                    sourceType = "DASH+Merge"
-                } else if (stream.hlsUrl != null) {
+                if (stream.hlsUrl != null) {
                     // HLS: segment-based = fast seeking, auto-adaptive quality
                     val hlsSource = HlsMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.hlsUrl))
@@ -163,7 +152,7 @@ class PlayerViewModel @Inject constructor(
                     sourceType = "Progressive"
                 }
 
-                android.util.Log.i("VodPlayer", "Source: $sourceType | DASH=${stream.videoDashManifest != null} | HLS=${stream.hlsUrl != null} | Res=${stream.resolution}")
+                android.util.Log.i("VodPlayer", "Source: $sourceType | HLS=${stream.hlsUrl != null} | Res=${stream.resolution}")
                 exoPlayer.prepare()
 
                 if (resumeSeconds > 0) {
@@ -317,18 +306,6 @@ class PlayerViewModel @Inject constructor(
         player = null
     }
 
-    companion object {
-        /**
-         * Create a MediaItem from a DASH manifest XML string using a data: URI.
-         * ExoPlayer's DashMediaSource can parse inline manifest XML this way.
-         */
-        @OptIn(UnstableApi::class)
-        private fun createDashMediaItem(dashManifestXml: String): MediaItem {
-            val encoded = android.net.Uri.encode(dashManifestXml)
-            val dataUri = "data:application/dash+xml;charset=UTF-8,$encoded"
-            return MediaItem.fromUri(dataUri)
-        }
-    }
 }
 
 private fun formatTime(ms: Long): String {
