@@ -36,11 +36,13 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.vodbase.tv.data.model.Vod
@@ -71,10 +73,20 @@ class PlayerViewModel @Inject constructor(
         private set
     var durationMs by mutableStateOf(0L)
         private set
+    // Seek accumulator - shows pending seek target while user is scrubbing
+    var pendingSeekMs by mutableStateOf<Long?>(null)
+        private set
 
     private var player: ExoPlayer? = null
-    private var overlayJob: kotlinx.coroutines.Job? = null
+    private var overlayJob: Job? = null
+    private var seekJob: Job? = null
+    private var consecutiveSeeks = 0
+    private var lastSeekDirection = 0 // -1 left, +1 right
+    private var lastSeekTime = 0L
+    private var channelId: String? = null
+    private var hasMarkedWatched = false
 
+    @OptIn(UnstableApi::class)
     fun loadAndPlay(
         context: android.content.Context,
         channelId: String,
@@ -82,6 +94,7 @@ class PlayerViewModel @Inject constructor(
         resumeSeconds: Float,
         onPlayerReady: (ExoPlayer) -> Unit
     ) {
+        this.channelId = channelId
         val foundVod = vodRepository.getVodById(channelId, vodId)
         vod = foundVod
         if (foundVod == null) {
@@ -96,10 +109,27 @@ class PlayerViewModel @Inject constructor(
                 error = null
                 val stream = streamExtractor.extractStream(foundVod.youtubeId)
 
-                val exoPlayer = ExoPlayer.Builder(context).build()
+                // Tuned buffer settings for better seek performance
+                val loadControl = DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(
+                        15_000,  // min buffer before playback starts (15s)
+                        60_000,  // max buffer (1min)
+                        1_000,   // playback buffer (1s - start faster after seek)
+                        2_000    // rebuffer threshold (2s)
+                    )
+                    .setBackBuffer(30_000, true) // keep 30s back buffer
+                    .build()
+
+                val exoPlayer = ExoPlayer.Builder(context)
+                    .setLoadControl(loadControl)
+                    .build()
+
+                val dataSourceFactory = DefaultHttpDataSource.Factory()
+                    .setConnectTimeoutMs(15_000)
+                    .setReadTimeoutMs(15_000)
+                    .setAllowCrossProtocolRedirects(true)
 
                 if (stream.isAdaptive && stream.audioUrl != null) {
-                    val dataSourceFactory = DefaultHttpDataSource.Factory()
                     val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.videoUrl))
                     val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
@@ -125,9 +155,7 @@ class PlayerViewModel @Inject constructor(
                 onPlayerReady(exoPlayer)
                 isLoading = false
 
-                // Position tracking loop (updates UI every 500ms)
                 startPositionTracking(exoPlayer)
-                // Progress save loop
                 startProgressSaving(channelId, foundVod, exoPlayer)
             } catch (e: Exception) {
                 error = "Failed to load video: ${e.message}"
@@ -143,7 +171,23 @@ class PlayerViewModel @Inject constructor(
                 try {
                     currentPositionMs = player.currentPosition
                     durationMs = player.duration.coerceAtLeast(0)
+                    // Check for completion (>90% watched)
+                    checkCompletion(player)
                 } catch (_: Exception) { }
+            }
+        }
+    }
+
+    private fun checkCompletion(player: ExoPlayer) {
+        if (hasMarkedWatched) return
+        val duration = player.duration
+        val position = player.currentPosition
+        if (duration > 0 && position > 0 && position.toFloat() / duration > 0.9f) {
+            hasMarkedWatched = true
+            val ch = channelId ?: return
+            val v = vod ?: return
+            viewModelScope.launch {
+                progressRepository.markWatched(ch, v.id, v.title, v.duration)
             }
         }
     }
@@ -183,12 +227,44 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    fun seekBy(player: ExoPlayer?, deltaMs: Long) {
-        player?.let {
-            val newPos = (it.currentPosition + deltaMs).coerceIn(0, it.duration)
-            it.seekTo(newPos)
+    /**
+     * Batched seek with acceleration.
+     * Rapid presses accumulate a delta. The actual seek fires 400ms after the last press.
+     * Speed ramps: 1-3 presses = 10s, 4-6 = 30s, 7+ = 60s per press.
+     */
+    fun seekBy(player: ExoPlayer?, direction: Int) {
+        player ?: return
+        val now = System.currentTimeMillis()
+
+        // Reset acceleration if direction changed or >1.5s since last press
+        if (direction != lastSeekDirection || now - lastSeekTime > 1500) {
+            consecutiveSeeks = 0
         }
+        consecutiveSeeks++
+        lastSeekDirection = direction
+        lastSeekTime = now
+
+        // Acceleration ramp
+        val stepMs = when {
+            consecutiveSeeks >= 7 -> 60_000L
+            consecutiveSeeks >= 4 -> 30_000L
+            else -> 10_000L
+        }
+
+        val deltaMs = stepMs * direction
+        val currentTarget = pendingSeekMs ?: player.currentPosition
+        val newTarget = (currentTarget + deltaMs).coerceIn(0, player.duration.coerceAtLeast(0))
+        pendingSeekMs = newTarget
+
         showOverlayBriefly()
+
+        // Debounce - only execute seek after 400ms of no presses
+        seekJob?.cancel()
+        seekJob = viewModelScope.launch {
+            delay(400)
+            player.seekTo(newTarget)
+            pendingSeekMs = null
+        }
     }
 
     fun togglePlayPause(player: ExoPlayer?) {
@@ -281,9 +357,9 @@ fun PlayerScreen(
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ->
                         { viewModel.togglePlayPause(exoPlayer); true }
                     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND ->
-                        { viewModel.seekBy(exoPlayer, -10_000); true }
+                        { viewModel.seekBy(exoPlayer, -1); true }
                     KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD ->
-                        { viewModel.seekBy(exoPlayer, 10_000); true }
+                        { viewModel.seekBy(exoPlayer, 1); true }
                     KeyEvent.KEYCODE_BACK ->
                         { onBack(); true }
                     KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN ->
@@ -341,6 +417,24 @@ fun PlayerScreen(
             }
         }
 
+        // Seek indicator (shows target position while scrubbing)
+        viewModel.pendingSeekMs?.let { targetMs ->
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        formatTime(targetMs),
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = theme.primary
+                    )
+                }
+            }
+        }
+
         // Auto-hide overlay
         AnimatedVisibility(
             visible = viewModel.showOverlay,
@@ -383,8 +477,9 @@ fun PlayerScreen(
                         .padding(horizontal = 40.dp, vertical = 24.dp)
                 ) {
                     // Progress bar
+                    val displayPos = viewModel.pendingSeekMs ?: viewModel.currentPositionMs
                     val progress = if (viewModel.durationMs > 0) {
-                        (viewModel.currentPositionMs.toFloat() / viewModel.durationMs.toFloat()).coerceIn(0f, 1f)
+                        (displayPos.toFloat() / viewModel.durationMs.toFloat()).coerceIn(0f, 1f)
                     } else 0f
 
                     LinearProgressIndicator(
@@ -405,16 +500,21 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            formatTime(viewModel.currentPositionMs),
+                            formatTime(displayPos),
                             fontSize = 15.sp,
-                            color = Color.White
+                            color = if (viewModel.pendingSeekMs != null) theme.primary else Color.White
                         )
                         // Play state indicator
                         Text(
-                            if (viewModel.isPlaying) "Playing" else "Paused",
+                            if (viewModel.pendingSeekMs != null) "Seeking..."
+                            else if (viewModel.isPlaying) "Playing" else "Paused",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (viewModel.isPlaying) theme.primary else Color(0xFFFF9800)
+                            color = when {
+                                viewModel.pendingSeekMs != null -> theme.primary
+                                viewModel.isPlaying -> theme.primary
+                                else -> Color(0xFFFF9800)
+                            }
                         )
                         Text(
                             formatTime(viewModel.durationMs),

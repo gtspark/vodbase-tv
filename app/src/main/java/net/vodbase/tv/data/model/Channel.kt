@@ -12,19 +12,19 @@ enum class Channel(
 ) {
     JERMA("jerma", "JERMA985", "Jerma985 Theater",
         "The psycho streamer's complete archive",
-        "400+", "15", "ENTER THE CHAOS",
+        "1000+", "15", "ENTER THE CHAOS",
         "https://vodbase.net/images/jerma.png"),
     SIPS("sips", "SIPS_", "Sips Theater",
         "The real guy, the best guy",
-        "100+", "7", "PLAY TAPE",
+        "4800+", "7", "PLAY TAPE",
         "https://vodbase.net/images/sips.png"),
     NL("nl", "NORTHERNLION", "Northernlion Theater",
         "The bald genius's complete collection",
-        "100+", "9", "EXECUTE",
+        "800+", "9", "EXECUTE",
         "https://vodbase.net/images/northernlion.png"),
     MOONMOON("moonmoon", "MOONMOON", "MOONMOON Theater",
         "The variety king's complete collection",
-        "300+", "6", "ENTER DOMAIN",
+        "3900+", "6", "ENTER DOMAIN",
         "https://vodbase.net/images/moonmoon.png");
 
     companion object {

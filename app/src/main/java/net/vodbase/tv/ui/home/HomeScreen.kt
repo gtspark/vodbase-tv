@@ -31,7 +31,7 @@ fun HomeScreen(onChannelSelected: (String) -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0A0A0F))
-            .padding(horizontal = 48.dp, vertical = 20.dp),
+            .padding(horizontal = 40.dp, vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -91,7 +91,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
 
     Box(
         modifier = modifier
-            .height(130.dp)
+            .height(170.dp)
             .clip(theme.shape)
             .background(
                 Brush.horizontalGradient(
@@ -109,7 +109,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
             )
             .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick(channel) }
-            .padding(16.dp)
+            .padding(20.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -119,7 +119,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(72.dp)
                     .border(
                         width = 2.dp,
                         color = if (isFocused) theme.primary else theme.primary.copy(alpha = 0.5f),
@@ -144,7 +144,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
             ) {
                 Text(
                     channel.displayName,
-                    fontSize = 18.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isFocused) theme.primary else theme.primary.copy(alpha = 0.8f)
                 )
@@ -153,20 +153,20 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "${channel.approxVods} VODs",
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = theme.primary.copy(alpha = if (isFocused) 0.7f else 0.4f)
                     )
                     Text(
                         "${channel.years} Years",
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         color = theme.onSurface.copy(alpha = 0.3f)
                     )
                 }
 
                 Text(
                     channel.tagline,
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     color = theme.onSurface.copy(alpha = if (isFocused) 0.5f else 0.25f),
                     maxLines = 1
                 )
@@ -175,7 +175,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
                 if (isFocused) {
                     Text(
                         "${channel.enterText} →",
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = theme.primary.copy(alpha = 0.8f)
                     )

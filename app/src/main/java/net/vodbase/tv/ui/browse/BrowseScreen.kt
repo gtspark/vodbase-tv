@@ -91,6 +91,24 @@ class BrowseViewModel @Inject constructor(
                 // Recently Added
                 rowList.add(VodRow("Recently Added", vods.take(20)))
 
+                // Series rows - group VODs by series name, show top 10 series with 2+ parts
+                val seriesGroups = vods
+                    .filter { it.series != null }
+                    .groupBy { it.series!!.name.trimEnd('(', ' ') } // fix trailing "(" from API
+                    .filter { it.value.size >= 2 }
+                    .mapValues { (_, seriesVods) -> seriesVods.sortedBy { it.series!!.part } }
+                    .entries
+                    .sortedByDescending { it.value.size }
+                    .take(10)
+
+                for ((seriesName, seriesVods) in seriesGroups) {
+                    // Clean up series name: "Jerma Streams - Casino, Inc." -> "Casino, Inc."
+                    val displayName = seriesName
+                        .replace(Regex("^\\w+ (Streams|Re-stream|Highlights)\\s*-\\s*"), "")
+                        .ifEmpty { seriesName }
+                    rowList.add(VodRow("$displayName (${seriesVods.size} parts)", seriesVods))
+                }
+
                 // Per era
                 for (era in eras) {
                     val eraVods = vods.filter { it.era == era }
