@@ -18,6 +18,7 @@ data class ChannelTheme(
     val cornerRadius: Dp = 10.dp
 ) {
     val shape: Shape get() = RoundedCornerShape(cornerRadius)
+    val error: Color get() = Color(0xFFEF4444)
 }
 
 object ChannelThemes {

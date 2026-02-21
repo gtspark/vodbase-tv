@@ -51,8 +51,17 @@ class VodRepository @Inject constructor(
         return cache[streamer]?.find { it.id == vodId }
     }
 
-    fun getVodsByEra(streamer: String, era: String): List<Vod> {
-        return cache[streamer]?.filter { it.era == era } ?: emptyList()
+    /**
+     * Returns a VOD from the cache if available; fetches the channel's VOD list first
+     * if the cache is cold. Returns null only if the VOD is not found after fetching.
+     */
+    suspend fun getVodByIdOrFetch(streamer: String, vodId: String): Vod? {
+        var found = getVodById(streamer, vodId)
+        if (found == null) {
+            getVods(streamer)
+            found = getVodById(streamer, vodId)
+        }
+        return found
     }
 
     fun searchVods(streamer: String, query: String): List<Vod> {

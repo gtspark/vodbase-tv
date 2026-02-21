@@ -11,24 +11,13 @@ data class VodsResponse(
 
 data class QrCreateResponse(
     val success: Boolean,
-    val token: String?,
-    val qrDataUrl: String?
+    val token: String?
 )
 
 data class QrPollResponse(
     val status: String,  // "pending", "approved", "expired"
     val deviceToken: String?,
     val email: String?
-)
-
-data class UserResponse(
-    val user: UserData?
-)
-
-data class UserData(
-    val email: String,
-    val id: String?,
-    val watchHistory: Map<String, Any>?
 )
 
 data class ProgressResponse(
@@ -59,9 +48,6 @@ interface VodBaseApi {
 
     @GET("/api/vodbase/qr-login/poll/{token}")
     suspend fun pollQrSession(@Path("token") token: String): QrPollResponse
-
-    @GET("/api/vodbase/user")
-    suspend fun getUser(@Header("X-Device-Token") token: String): UserResponse
 
     @GET("/api/vodbase/progress/{theater}")
     suspend fun getProgress(

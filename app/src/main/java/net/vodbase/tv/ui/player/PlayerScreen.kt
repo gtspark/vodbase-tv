@@ -134,11 +134,7 @@ class PlayerViewModel @Inject constructor(
                 error = null
 
                 // #5 - fetch VODs if cache is cold
-                var foundVod = vodRepository.getVodById(channelId, vodId)
-                if (foundVod == null) {
-                    vodRepository.getVods(channelId)
-                    foundVod = vodRepository.getVodById(channelId, vodId)
-                }
+                val foundVod = vodRepository.getVodByIdOrFetch(channelId, vodId)
                 if (foundVod == null) {
                     error = "VOD not found"
                     isLoading = false
@@ -164,7 +160,6 @@ class PlayerViewModel @Inject constructor(
                     .setAllowCrossProtocolRedirects(true)
                 val dataSourceFactory = DefaultDataSource.Factory(appContext, httpFactory)
 
-                val sourceType: String
                 if (stream.videoDashManifest != null && stream.audioDashManifest != null) {
                     // #3 - unique manifest filenames per VOD to prevent write-during-read
                     val videoManifestFile = java.io.File(appContext.cacheDir, "dash_video_${vodId}.mpd")
@@ -179,25 +174,20 @@ class PlayerViewModel @Inject constructor(
                     val audioDashSource = DashMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(audioManifestFile)))
                     exoPlayer.setMediaSource(MergingMediaSource(videoDashSource, audioDashSource))
-                    sourceType = "DASH+Merge"
                 } else if (stream.hlsUrl != null) {
                     val hlsSource = HlsMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.hlsUrl))
                     exoPlayer.setMediaSource(hlsSource)
-                    sourceType = "HLS"
                 } else if (stream.isAdaptive && stream.audioUrl != null) {
                     val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.videoUrl))
                     val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.audioUrl))
                     exoPlayer.setMediaSource(MergingMediaSource(videoSource, audioSource))
-                    sourceType = "Progressive+Merge"
                 } else {
                     exoPlayer.setMediaItem(MediaItem.fromUri(stream.videoUrl))
-                    sourceType = "Progressive"
                 }
 
-                android.util.Log.i("VodPlayer", "Source: $sourceType | Res=${stream.resolution}")
                 exoPlayer.prepare()
 
                 if (resumeMs > 0) {
@@ -567,7 +557,7 @@ fun PlayerScreen(
         viewModel.error?.let { err ->
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(err, color = Color(0xFFEF4444), fontSize = 20.sp)
+                    Text(err, color = theme.error, fontSize = 20.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Press BACK to return", color = Color(0xFF7A7A9A), fontSize = 16.sp)
                 }

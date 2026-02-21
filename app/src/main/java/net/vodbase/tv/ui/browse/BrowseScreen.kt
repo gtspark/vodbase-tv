@@ -157,7 +157,7 @@ fun BrowseScreen(
     channel: String,
     onVodSelected: (String) -> Unit,
     onSearch: () -> Unit,
-    onShuffle: () -> Unit = {},
+    onShuffle: () -> Unit,
     onBack: () -> Unit,
     viewModel: BrowseViewModel = hiltViewModel()
 ) {
@@ -197,7 +197,7 @@ fun BrowseScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         viewModel.error ?: "Unknown error",
-                        color = Color(0xFFEF4444),
+                        color = theme.error,
                         fontSize = 16.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))

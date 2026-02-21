@@ -50,21 +50,4 @@ class AuthRepository @Inject constructor(
             prefs.remove(USER_EMAIL_KEY)
         }
     }
-
-    suspend fun validateToken(): Boolean {
-        val token = getDeviceToken() ?: return false
-        return try {
-            val response = api.getProgress("jerma", token)
-            true // if we get a response, the token is valid
-        } catch (e: retrofit2.HttpException) {
-            if (e.code() == 401 || e.code() == 403) {
-                logout() // clear invalid token
-                false
-            } else {
-                true // network error, assume valid
-            }
-        } catch (e: Exception) {
-            true // network error, assume valid
-        }
-    }
 }

@@ -4,7 +4,6 @@ data class Vod(
     val id: String,
     val title: String,
     val url: String,
-    val embedUrl: String,
     val type: String,
     val platform: String,
     val gameContent: String?,
@@ -13,8 +12,6 @@ data class Vod(
     val era: String,
     val thumbnail: String,
     val description: String?,
-    val viewCount: String?,
-    val uploader: String?,
     val video_id: String,
     val series: SeriesInfo? = null
 ) {

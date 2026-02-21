@@ -1,46 +1,45 @@
 package net.vodbase.tv.ui.menu
 
+import android.view.KeyEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.vodbase.tv.ui.components.ActionButton
+import net.vodbase.tv.ui.theme.ChannelTheme
 
-private val AccentGreen = Color(0xFF00FF41)
 private val PanelBackground = Color(0xFF1A1A1A)
-private val ButtonSurface = Color(0xFF2A2A2A)
-private val ButtonShape = RoundedCornerShape(8.dp)
 
+/**
+ * A slide-in overlay menu panel. Uses the channel theme for button styling so colors are
+ * consistent with the rest of the channel UI.
+ *
+ * MenuButton has been replaced with the shared ActionButton composable.
+ */
 @Composable
 fun MenuOverlay(
     isVisible: Boolean,
     onDismiss: () -> Unit,
     userEmail: String?,
     onSignOut: () -> Unit,
-    onSignIn: () -> Unit
+    onSignIn: () -> Unit,
+    theme: ChannelTheme
 ) {
     if (isVisible) {
         val focusRequester = remember { FocusRequester() }
@@ -56,7 +55,9 @@ fun MenuOverlay(
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.6f))
                 .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.Back) {
+                    if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                        event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_BACK
+                    ) {
                         onDismiss()
                         true
                     } else {
@@ -99,7 +100,7 @@ fun MenuOverlay(
                         "VodBase",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AccentGreen
+                        color = theme.primary
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -117,9 +118,10 @@ fun MenuOverlay(
                             maxLines = 1,
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
-                        MenuButton(
+                        ActionButton(
                             text = "Sign Out",
                             isBright = false,
+                            theme = theme,
                             onClick = {
                                 onSignOut()
                                 onDismiss()
@@ -132,9 +134,10 @@ fun MenuOverlay(
                             color = Color.White.copy(alpha = 0.45f),
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
-                        MenuButton(
+                        ActionButton(
                             text = "Sign In",
                             isBright = true,
+                            theme = theme,
                             onClick = {
                                 onSignIn()
                                 onDismiss()
@@ -173,56 +176,5 @@ fun MenuOverlay(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun MenuButton(
-    text: String,
-    isBright: Boolean,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
-
-    val bgColor = when {
-        isFocused && isBright -> AccentGreen
-        isFocused -> AccentGreen.copy(alpha = 0.2f)
-        isBright -> AccentGreen.copy(alpha = 0.8f)
-        else -> ButtonSurface
-    }
-    val textColor = when {
-        isFocused && isBright -> Color.Black
-        isFocused -> Color.White
-        isBright -> Color.Black
-        else -> Color.White.copy(alpha = 0.7f)
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(ButtonShape)
-            .background(bgColor)
-            .then(
-                if (isFocused) Modifier.border(
-                    width = 2.dp,
-                    color = AccentGreen,
-                    shape = ButtonShape
-                ) else Modifier
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-            color = textColor
-        )
     }
 }

@@ -29,6 +29,7 @@ import net.vodbase.tv.ui.menu.MenuOverlay
 import net.vodbase.tv.ui.player.PlayerScreen
 import net.vodbase.tv.ui.search.SearchScreen
 import net.vodbase.tv.ui.shuffle.ShuffleScreen
+import net.vodbase.tv.ui.theme.ChannelThemes
 import net.vodbase.tv.ui.theme.VodBaseTheme
 import javax.inject.Inject
 
@@ -209,6 +210,9 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // Menu overlay drawn on top of NavHost
+                    // Theme follows the currently active channel; falls back to Jerma on home screen
+                    val menuTheme = currentChannel?.let { ChannelThemes.forChannelId(it) }
+                        ?: ChannelThemes.Jerma
                     MenuOverlay(
                         isVisible = showMenu,
                         onDismiss = { showMenu = false },
@@ -223,7 +227,8 @@ class MainActivity : ComponentActivity() {
                         },
                         onSignIn = {
                             navController.navigate("auth")
-                        }
+                        },
+                        theme = menuTheme
                     )
                 }
             }
