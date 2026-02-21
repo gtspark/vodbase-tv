@@ -14,6 +14,7 @@ android {
             val customKeystore = file("debug.keystore")
             if (customKeystore.exists()) {
                 storeFile = customKeystore
+                // Fallbacks are for debug keystore only - never reuse for release
                 storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: "vodbase123"
                 keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: "vodbase-debug"
                 keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: "vodbase123"

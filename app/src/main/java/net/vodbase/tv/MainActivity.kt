@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import net.vodbase.tv.data.repository.AuthRepository
 import net.vodbase.tv.ui.auth.AuthScreen
@@ -37,8 +38,8 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var authRepository: AuthRepository
 
-    // Shared state for voice search query delivered via onNewIntent
-    private var pendingSearchQuery by mutableStateOf<String?>(null)
+    // SharedFlow for voice search queries - handles duplicate query strings correctly (#11)
+    private val pendingSearchQuery = MutableSharedFlow<String>(extraBufferCapacity = 1)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,12 +58,12 @@ class MainActivity : ComponentActivity() {
                 var showMenu by remember { mutableStateOf(false) }
                 var currentChannel by remember { mutableStateOf<String?>(null) }
 
-                // Handle pending voice search query - navigate to search when one arrives
-                LaunchedEffect(pendingSearchQuery) {
-                    val query = pendingSearchQuery ?: return@LaunchedEffect
-                    pendingSearchQuery = null
-                    val channel = currentChannel ?: "jerma"
-                    navController.navigate("search/$channel?query=${android.net.Uri.encode(query)}")
+                // Collect voice search queries from SharedFlow
+                LaunchedEffect(Unit) {
+                    pendingSearchQuery.collect { query ->
+                        val channel = currentChannel ?: "jerma"
+                        navController.navigate("search/$channel?query=${android.net.Uri.encode(query)}")
+                    }
                 }
 
                 Box(
@@ -139,33 +140,33 @@ class MainActivity : ComponentActivity() {
                             DetailScreen(
                                 channel = channel,
                                 vodId = vodId,
-                                onPlay = { resumeTime ->
-                                    navController.navigate("player/${channel}/${vodId}?resume=${resumeTime}")
+                                onPlay = { resumeMs ->
+                                    navController.navigate("player/${channel}/${vodId}?resumeMs=${resumeMs}")
                                 },
                                 onBack = { navController.popBackStack() }
                             )
                         }
 
                         composable(
-                            "player/{channel}/{vodId}?resume={resume}",
+                            "player/{channel}/{vodId}?resumeMs={resumeMs}",
                             arguments = listOf(
                                 navArgument("channel") { type = NavType.StringType },
                                 navArgument("vodId") { type = NavType.StringType },
-                                navArgument("resume") { type = NavType.FloatType; defaultValue = 0f }
+                                navArgument("resumeMs") { type = NavType.LongType; defaultValue = 0L }
                             )
                         ) { backStackEntry ->
                             val channel = backStackEntry.arguments?.getString("channel") ?: "jerma"
                             val vodId = backStackEntry.arguments?.getString("vodId") ?: ""
-                            val resume = backStackEntry.arguments?.getFloat("resume") ?: 0f
+                            val resumeMs = backStackEntry.arguments?.getLong("resumeMs") ?: 0L
                             LaunchedEffect(channel) { currentChannel = channel }
                             PlayerScreen(
                                 channel = channel,
                                 vodId = vodId,
-                                resumeTimeSeconds = resume,
+                                resumeTimeMs = resumeMs,
                                 onBack = { navController.popBackStack() },
                                 onNextVod = { nextId ->
-                                    navController.navigate("player/${channel}/${nextId}?resume=0") {
-                                        popUpTo("player/{channel}/{vodId}?resume={resume}") { inclusive = true }
+                                    navController.navigate("player/${channel}/${nextId}?resumeMs=0") {
+                                        popUpTo("player/{channel}/{vodId}?resumeMs={resumeMs}") { inclusive = true }
                                     }
                                 }
                             )
@@ -239,7 +240,7 @@ class MainActivity : ComponentActivity() {
         if (intent?.action == Intent.ACTION_SEARCH) {
             val query = intent.getStringExtra(SearchManager.QUERY)
             if (!query.isNullOrBlank()) {
-                pendingSearchQuery = query
+                pendingSearchQuery.tryEmit(query)
             }
         }
     }

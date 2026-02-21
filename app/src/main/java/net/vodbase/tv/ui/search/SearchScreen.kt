@@ -1,5 +1,6 @@
 package net.vodbase.tv.ui.search
 
+import android.view.KeyEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
@@ -10,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -71,6 +73,16 @@ fun SearchScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(theme.background)
+            .onPreviewKeyEvent { event ->
+                if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                    event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_BACK
+                ) {
+                    onBack()
+                    true
+                } else {
+                    false
+                }
+            }
             .padding(48.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {

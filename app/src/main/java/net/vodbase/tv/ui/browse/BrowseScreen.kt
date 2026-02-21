@@ -66,10 +66,13 @@ class BrowseViewModel @Inject constructor(
         private set
     var continueWatching by mutableStateOf<ContinueWatchingInfo?>(null)
         private set
+    var error by mutableStateOf<String?>(null)
+        private set
 
     fun loadChannel(channelId: String) {
         viewModelScope.launch {
             isLoading = true
+            error = null
             try {
                 val vods = vodRepository.getVods(channelId)
                 totalVods = vods.size
@@ -142,7 +145,7 @@ class BrowseViewModel @Inject constructor(
 
                 rows = rowList
             } catch (e: Exception) {
-                // Handle error
+                error = "Failed to load VODs: ${e.message}"
             }
             isLoading = false
         }
@@ -188,6 +191,22 @@ fun BrowseScreen(
         if (viewModel.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = theme.primary)
+            }
+        } else if (viewModel.error != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        viewModel.error ?: "Unknown error",
+                        color = Color(0xFFEF4444),
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Press SELECT to retry",
+                        color = theme.onSurface.copy(alpha = 0.5f),
+                        fontSize = 14.sp
+                    )
+                }
             }
         } else {
             TvLazyColumn(

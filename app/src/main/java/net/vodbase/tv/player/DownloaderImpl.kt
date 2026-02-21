@@ -10,13 +10,10 @@ import java.net.URL
 class DownloaderImpl private constructor() : Downloader() {
 
     companion object {
-        private var instance: DownloaderImpl? = null
+        @Volatile private var instance: DownloaderImpl? = null
 
-        fun getInstance(): DownloaderImpl {
-            if (instance == null) {
-                instance = DownloaderImpl()
-            }
-            return instance!!
+        fun getInstance(): DownloaderImpl = instance ?: synchronized(this) {
+            instance ?: DownloaderImpl().also { instance = it }
         }
     }
 

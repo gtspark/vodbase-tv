@@ -1,8 +1,11 @@
 package net.vodbase.tv.data.repository
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import net.vodbase.tv.data.api.VodBaseApi
 import net.vodbase.tv.data.model.SeriesInfo
 import net.vodbase.tv.data.model.Vod
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -10,30 +13,38 @@ import javax.inject.Singleton
 class VodRepository @Inject constructor(
     private val api: VodBaseApi
 ) {
-    private val cache = mutableMapOf<String, List<Vod>>()
-    private val etags = mutableMapOf<String, String>()
+    private val cache = ConcurrentHashMap<String, List<Vod>>()
+    private val etags = ConcurrentHashMap<String, String>()
+    private val fetchMutex = Mutex()
 
     suspend fun getVods(streamer: String, forceRefresh: Boolean = false): List<Vod> {
         if (!forceRefresh && cache.containsKey(streamer)) {
             return cache[streamer]!!
         }
 
-        val etag = if (forceRefresh) null else etags[streamer]
-        val response = api.getVods(streamer, etag)
+        return fetchMutex.withLock {
+            // Re-check after acquiring lock (another coroutine may have populated it)
+            if (!forceRefresh && cache.containsKey(streamer)) {
+                return@withLock cache[streamer]!!
+            }
 
-        if (response.code() == 304) {
-            return cache[streamer] ?: emptyList()
+            val etag = if (forceRefresh) null else etags[streamer]
+            val response = api.getVods(streamer, etag)
+
+            if (response.code() == 304) {
+                return@withLock cache[streamer] ?: emptyList()
+            }
+
+            if (response.isSuccessful) {
+                val body = response.body()!!
+                val vods = autoDetectSeries(body.vods)
+                cache[streamer] = vods
+                response.headers()["ETag"]?.let { etags[streamer] = it }
+                return@withLock vods
+            }
+
+            cache[streamer] ?: emptyList()
         }
-
-        if (response.isSuccessful) {
-            val body = response.body()!!
-            val vods = autoDetectSeries(body.vods)
-            cache[streamer] = vods
-            response.headers()["ETag"]?.let { etags[streamer] = it }
-            return vods
-        }
-
-        return cache[streamer] ?: emptyList()
     }
 
     fun getVodById(streamer: String, vodId: String): Vod? {
@@ -74,8 +85,8 @@ class VodRepository @Inject constructor(
             PatternDef("""^.*?Plays\s+(.+?)\s+\([^)]+\)\s+-\s+#(\d+)(?:\s+.*)?$""".toRegex(RegexOption.IGNORE_CASE), "sips"),
             // Jerma: "Series Name (Part X)"
             PatternDef("""^(.+?)\s+\(Part\s+(\d+)\)(?:\s+.*)?$""".toRegex(RegexOption.IGNORE_CASE), "part"),
-            // "Game Name - Subtitle Part X"
-            PatternDef("""^(.+?)\s-\s(.+?)\sPart\s(\d+)$""".toRegex(RegexOption.IGNORE_CASE), "subtitle_part"),
+            // "Game Name - Subtitle Part X" (with optional trailing text)
+            PatternDef("""^(.+?)\s-\s(.+?)\sPart\s(\d+)(?:\s+.*)?$""".toRegex(RegexOption.IGNORE_CASE), "subtitle_part"),
             // "Game Name Part X"
             PatternDef("""^(.+?)\sPart\s(\d+)$""".toRegex(RegexOption.IGNORE_CASE), "part"),
             // "Streamer Plays Game - Subtitle Part X"

@@ -28,6 +28,6 @@ enum class Channel(
         "https://vodbase.net/images/moonmoon.png");
 
     companion object {
-        fun fromId(id: String): Channel = entries.first { it.id == id }
+        fun fromId(id: String): Channel = entries.firstOrNull { it.id == id } ?: JERMA
     }
 }

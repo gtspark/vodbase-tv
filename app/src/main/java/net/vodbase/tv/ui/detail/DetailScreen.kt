@@ -46,10 +46,27 @@ class DetailViewModel @Inject constructor(
         private set
     var isWatched by mutableStateOf(false)
         private set
+    var error by mutableStateOf<String?>(null)
+        private set
 
     fun load(channelId: String, vodId: String) {
-        vod = vodRepository.getVodById(channelId, vodId)
         viewModelScope.launch {
+            // Try cache first, fetch if cold
+            var found = vodRepository.getVodById(channelId, vodId)
+            if (found == null) {
+                try {
+                    vodRepository.getVods(channelId)
+                    found = vodRepository.getVodById(channelId, vodId)
+                } catch (e: Exception) {
+                    error = "Failed to load: ${e.message}"
+                    return@launch
+                }
+            }
+            if (found == null) {
+                error = "VOD not found"
+                return@launch
+            }
+            vod = found
             val resume = progressRepository.getResumePosition(channelId)
             if (resume?.first == vodId) {
                 resumeTime = resume.second
@@ -71,7 +88,7 @@ class DetailViewModel @Inject constructor(
 fun DetailScreen(
     channel: String,
     vodId: String,
-    onPlay: (Float) -> Unit,
+    onPlay: (Long) -> Unit,
     onBack: () -> Unit,
     viewModel: DetailViewModel = hiltViewModel()
 ) {
@@ -97,7 +114,11 @@ fun DetailScreen(
             )
             .padding(horizontal = 40.dp, vertical = 24.dp)
     ) {
-        if (vod == null) {
+        if (viewModel.error != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(viewModel.error ?: "", color = Color(0xFFEF4444), fontSize = 16.sp)
+            }
+        } else if (vod == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Loading...", color = theme.onSurface.copy(alpha = 0.5f), fontSize = 16.sp)
             }
@@ -166,20 +187,20 @@ fun DetailScreen(
                             val secs = (viewModel.resumeTime % 60).toInt()
                             ActionButton(
                                 text = "Resume from ${mins}:${"%02d".format(secs)}",
-                                onClick = { onPlay(viewModel.resumeTime.toFloat()) },
+                                onClick = { onPlay((viewModel.resumeTime * 1000).toLong()) },
                                 isBright = true,
                                 theme = theme
                             )
                             ActionButton(
                                 text = "Play from Start",
-                                onClick = { onPlay(0f) },
+                                onClick = { onPlay(0L) },
                                 isBright = false,
                                 theme = theme
                             )
                         } else {
                             ActionButton(
                                 text = "Play",
-                                onClick = { onPlay(0f) },
+                                onClick = { onPlay(0L) },
                                 isBright = true,
                                 theme = theme
                             )

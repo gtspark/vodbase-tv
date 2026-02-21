@@ -50,6 +50,8 @@ import coil.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.data.repository.ProgressRepository
@@ -79,7 +81,6 @@ class PlayerViewModel @Inject constructor(
         private set
     var durationMs by mutableStateOf(0L)
         private set
-    // Seek accumulator - shows pending seek target while user is scrubbing
     var pendingSeekMs by mutableStateOf<Long?>(null)
         private set
     // Auto-advance state
@@ -88,52 +89,71 @@ class PlayerViewModel @Inject constructor(
         private set
     var upNextCountdown by mutableStateOf<Int?>(null)
         private set
-    private var countdownJob: Job? = null
 
+    // SharedFlow for next-VOD navigation events (#15 - avoid passing nav callbacks into coroutines)
+    private val _nextVodEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val nextVodEvent = _nextVodEvent.asSharedFlow()
+
+    private var countdownJob: Job? = null
     private var player: ExoPlayer? = null
     private var overlayJob: Job? = null
     private var seekJob: Job? = null
+    private var loadJob: Job? = null
+    private var trackingJob: Job? = null
+    private var savingJob: Job? = null
     private var consecutiveSeeks = 0
-    private var lastSeekDirection = 0 // -1 left, +1 right
+    private var lastSeekDirection = 0
     private var lastSeekTime = 0L
     private var channelId: String? = null
+    private var currentVodId: String? = null
     private var hasMarkedWatched = false
+    private var manifestFiles = mutableListOf<java.io.File>()
 
     @OptIn(UnstableApi::class)
     fun loadAndPlay(
         context: android.content.Context,
         channelId: String,
         vodId: String,
-        resumeSeconds: Float,
+        resumeMs: Long,
         onPlayerReady: (ExoPlayer) -> Unit
     ) {
-        this.channelId = channelId
-        val foundVod = vodRepository.getVodById(channelId, vodId)
-        vod = foundVod
-        if (foundVod == null) {
-            error = "VOD not found"
-            isLoading = false
-            return
-        }
+        // Cancel previous load and release previous player (#7 - prevent ExoPlayer leak)
+        loadJob?.cancel()
+        releasePlayer()
 
-        viewModelScope.launch {
+        this.channelId = channelId
+        this.currentVodId = vodId
+        hasMarkedWatched = false
+        videoEnded = false
+
+        val appContext = context.applicationContext  // #2 - use app context, not Activity
+
+        loadJob = viewModelScope.launch {
             try {
                 isLoading = true
                 error = null
+
+                // #5 - fetch VODs if cache is cold
+                var foundVod = vodRepository.getVodById(channelId, vodId)
+                if (foundVod == null) {
+                    vodRepository.getVods(channelId)
+                    foundVod = vodRepository.getVodById(channelId, vodId)
+                }
+                if (foundVod == null) {
+                    error = "VOD not found"
+                    isLoading = false
+                    return@launch
+                }
+                vod = foundVod
+
                 val stream = streamExtractor.extractStream(foundVod.youtubeId)
 
-                // Tuned buffer settings for better seek performance
                 val loadControl = DefaultLoadControl.Builder()
-                    .setBufferDurationsMs(
-                        15_000,  // min buffer before playback starts (15s)
-                        60_000,  // max buffer (1min)
-                        1_000,   // playback buffer (1s - start faster after seek)
-                        2_000    // rebuffer threshold (2s)
-                    )
-                    .setBackBuffer(30_000, true) // keep 30s back buffer
+                    .setBufferDurationsMs(15_000, 60_000, 1_000, 2_000)
+                    .setBackBuffer(30_000, true)
                     .build()
 
-                val exoPlayer = ExoPlayer.Builder(context)
+                val exoPlayer = ExoPlayer.Builder(appContext)
                     .setLoadControl(loadControl)
                     .setSeekParameters(SeekParameters.CLOSEST_SYNC)
                     .build()
@@ -142,16 +162,17 @@ class PlayerViewModel @Inject constructor(
                     .setConnectTimeoutMs(15_000)
                     .setReadTimeoutMs(15_000)
                     .setAllowCrossProtocolRedirects(true)
-                // DefaultDataSource handles file:// URIs (for DASH manifests) + delegates http to httpFactory
-                val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+                val dataSourceFactory = DefaultDataSource.Factory(appContext, httpFactory)
 
                 val sourceType: String
                 if (stream.videoDashManifest != null && stream.audioDashManifest != null) {
-                    // DASH: write manifests to temp files, use file:// URIs
-                    val videoManifestFile = java.io.File(context.cacheDir, "dash_video.mpd")
-                    val audioManifestFile = java.io.File(context.cacheDir, "dash_audio.mpd")
+                    // #3 - unique manifest filenames per VOD to prevent write-during-read
+                    val videoManifestFile = java.io.File(appContext.cacheDir, "dash_video_${vodId}.mpd")
+                    val audioManifestFile = java.io.File(appContext.cacheDir, "dash_audio_${vodId}.mpd")
                     videoManifestFile.writeText(stream.videoDashManifest)
                     audioManifestFile.writeText(stream.audioDashManifest)
+                    manifestFiles.add(videoManifestFile)
+                    manifestFiles.add(audioManifestFile)
 
                     val videoDashSource = DashMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(videoManifestFile)))
@@ -179,8 +200,8 @@ class PlayerViewModel @Inject constructor(
                 android.util.Log.i("VodPlayer", "Source: $sourceType | Res=${stream.resolution}")
                 exoPlayer.prepare()
 
-                if (resumeSeconds > 0) {
-                    exoPlayer.seekTo((resumeSeconds * 1000).toLong())
+                if (resumeMs > 0) {
+                    exoPlayer.seekTo(resumeMs)
                 }
 
                 exoPlayer.playWhenReady = true
@@ -199,7 +220,6 @@ class PlayerViewModel @Inject constructor(
                         }
                         android.util.Log.i("VodPlayer", "State=$stateName pos=${exoPlayer.currentPosition}ms buf=${exoPlayer.bufferedPosition}ms")
                         if (state == Player.STATE_ENDED) {
-                            // Mark watched if not already done via position tracking
                             if (!hasMarkedWatched) {
                                 hasMarkedWatched = true
                                 val ch = channelId ?: return
@@ -208,7 +228,6 @@ class PlayerViewModel @Inject constructor(
                                     progressRepository.markWatched(ch, v.id, v.title, v.duration)
                                 }
                             }
-                            // Signal the composable to start the up-next countdown
                             videoEnded = true
                         }
                     }
@@ -227,16 +246,17 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    // #6 - store Job refs so they can be cancelled on release
     private fun startPositionTracking(player: ExoPlayer) {
-        viewModelScope.launch {
+        trackingJob?.cancel()
+        trackingJob = viewModelScope.launch {
             while (true) {
                 delay(500)
                 try {
                     currentPositionMs = player.currentPosition
                     durationMs = player.duration.coerceAtLeast(0)
-                    // Check for completion (>90% watched)
                     checkCompletion(player)
-                } catch (_: Exception) { }
+                } catch (_: Exception) { break }
             }
         }
     }
@@ -256,7 +276,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun startProgressSaving(channelId: String, vod: Vod, player: ExoPlayer) {
-        viewModelScope.launch {
+        savingJob?.cancel()
+        savingJob = viewModelScope.launch {
             while (true) {
                 delay(30_000)
                 try {
@@ -267,7 +288,7 @@ class PlayerViewModel @Inject constructor(
                             channelId, vod.id, vod.title, vod.url, currentTime, duration
                         )
                     }
-                } catch (_: Exception) { }
+                } catch (_: Exception) { break }
             }
         }
     }
@@ -290,16 +311,10 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Batched seek with acceleration.
-     * Rapid presses accumulate a delta. The actual seek fires 400ms after the last press.
-     * Speed ramps: 1-3 presses = 10s, 4-6 = 30s, 7+ = 60s per press.
-     */
     fun seekBy(player: ExoPlayer?, direction: Int) {
         player ?: return
         val now = System.currentTimeMillis()
 
-        // Reset acceleration if direction changed or >1.5s since last press
         if (direction != lastSeekDirection || now - lastSeekTime > 1500) {
             consecutiveSeeks = 0
         }
@@ -307,7 +322,6 @@ class PlayerViewModel @Inject constructor(
         lastSeekDirection = direction
         lastSeekTime = now
 
-        // Acceleration ramp
         val stepMs = when {
             consecutiveSeeks >= 7 -> 60_000L
             consecutiveSeeks >= 4 -> 30_000L
@@ -321,7 +335,6 @@ class PlayerViewModel @Inject constructor(
 
         showOverlayBriefly()
 
-        // Debounce - only execute seek after 400ms of no presses
         seekJob?.cancel()
         seekJob = viewModelScope.launch {
             delay(400)
@@ -338,16 +351,10 @@ class PlayerViewModel @Inject constructor(
         showOverlayBriefly()
     }
 
-    /**
-     * Finds the next VOD to play after the current one ends.
-     * - If the current VOD is part of a series, returns the next part.
-     * - Otherwise, picks a random unwatched VOD from the channel.
-     */
     private suspend fun findNextVod(): Vod? {
         val ch = channelId ?: return null
         val currentVod = vod ?: return null
 
-        // Series: look for the next part
         val series = currentVod.series
         if (series != null) {
             val seriesVods = vodRepository.getSeriesVods(ch, series.name)
@@ -355,17 +362,14 @@ class PlayerViewModel @Inject constructor(
             if (nextPart != null) return nextPart
         }
 
-        // No next series part (or not a series): pick random unwatched
         val allVods = vodRepository.getVods(ch)
         val watchedIds = progressRepository.getWatchedIds(ch)
         val unwatched = allVods.filter { it.id != currentVod.id && !watchedIds.contains(it.id) }
         return if (unwatched.isNotEmpty()) unwatched.random() else allVods.filter { it.id != currentVod.id }.randomOrNull()
     }
 
-    /**
-     * Starts the 10-second up-next countdown. Calls onAdvance with the next VOD id when it reaches 0.
-     */
-    fun startUpNextCountdown(onAdvance: (String) -> Unit) {
+    // #15 - emit to SharedFlow instead of calling nav callback from coroutine
+    fun startUpNextCountdown() {
         countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
             val next = findNextVod()
@@ -382,13 +386,10 @@ class PlayerViewModel @Inject constructor(
             }
             upNextCountdown = 0
             val nextId = upNextVod?.id ?: return@launch
-            onAdvance(nextId)
+            _nextVodEvent.tryEmit(nextId)
         }
     }
 
-    /**
-     * Cancels the up-next countdown and hides the overlay.
-     */
     fun cancelUpNext() {
         countdownJob?.cancel()
         countdownJob = null
@@ -397,21 +398,29 @@ class PlayerViewModel @Inject constructor(
         videoEnded = false
     }
 
-    /**
-     * Immediately advances to the up-next VOD, cancelling the countdown timer.
-     */
-    fun playUpNextNow(onAdvance: (String) -> Unit) {
+    fun playUpNextNow() {
         val nextId = upNextVod?.id ?: return
         countdownJob?.cancel()
         countdownJob = null
         upNextVod = null
         upNextCountdown = null
-        onAdvance(nextId)
+        _nextVodEvent.tryEmit(nextId)
+    }
+
+    private fun releasePlayer() {
+        trackingJob?.cancel()
+        savingJob?.cancel()
+        seekJob?.cancel()
+        countdownJob?.cancel()
+        player?.release()
+        player = null
+        // Clean up old manifest files
+        manifestFiles.forEach { it.delete() }
+        manifestFiles.clear()
     }
 
     fun release() {
-        player?.release()
-        player = null
+        releasePlayer()
     }
 
 }
@@ -433,7 +442,7 @@ private fun formatTime(ms: Long): String {
 fun PlayerScreen(
     channel: String,
     vodId: String,
-    resumeTimeSeconds: Float,
+    resumeTimeMs: Long,
     onBack: () -> Unit,
     onNextVod: (String) -> Unit,
     viewModel: PlayerViewModel = hiltViewModel()
@@ -444,15 +453,22 @@ fun PlayerScreen(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(vodId) {
-        viewModel.loadAndPlay(context, channel, vodId, resumeTimeSeconds) { player ->
+        viewModel.loadAndPlay(context, channel, vodId, resumeTimeMs) { player ->
             exoPlayer = player
+        }
+    }
+
+    // #15 - collect next-VOD events from SharedFlow (safe navigation)
+    LaunchedEffect(Unit) {
+        viewModel.nextVodEvent.collect { nextId ->
+            onNextVod(nextId)
         }
     }
 
     // Auto-advance on video end
     LaunchedEffect(viewModel.videoEnded) {
         if (viewModel.videoEnded) {
-            viewModel.startUpNextCountdown { nextId -> onNextVod(nextId) }
+            viewModel.startUpNextCountdown()
         }
     }
 
@@ -499,7 +515,7 @@ fun PlayerScreen(
                 when (event.nativeKeyEvent.keyCode) {
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                         if (viewModel.upNextVod != null) {
-                            viewModel.playUpNextNow { onNextVod(it) }
+                            viewModel.playUpNextNow()
                         } else {
                             viewModel.togglePlayPause(exoPlayer)
                         }

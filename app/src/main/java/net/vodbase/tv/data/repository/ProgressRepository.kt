@@ -1,6 +1,7 @@
 package net.vodbase.tv.data.repository
 
 import net.vodbase.tv.data.api.VodBaseApi
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -9,7 +10,7 @@ class ProgressRepository @Inject constructor(
     private val api: VodBaseApi,
     private val authRepository: AuthRepository
 ) {
-    private val watchedCache = mutableMapOf<String, MutableSet<String>>()
+    private val watchedCache = ConcurrentHashMap<String, MutableSet<String>>()
 
     data class ResumeInfo(
         val vodId: String,
@@ -55,7 +56,7 @@ class ProgressRepository @Inject constructor(
         val token = authRepository.getDeviceToken() ?: return emptySet()
         return try {
             val response = api.getWatched(streamer, token)
-            val set = response.watchedVideos.toMutableSet()
+            val set = java.util.Collections.synchronizedSet(response.watchedVideos.toMutableSet())
             watchedCache[streamer] = set
             set
         } catch (e: Exception) {
@@ -64,7 +65,7 @@ class ProgressRepository @Inject constructor(
     }
 
     suspend fun markWatched(streamer: String, videoId: String, title: String, duration: String) {
-        watchedCache.getOrPut(streamer) { mutableSetOf() }.add(videoId)
+        watchedCache.getOrPut(streamer) { java.util.Collections.synchronizedSet(mutableSetOf()) }.add(videoId)
         val token = authRepository.getDeviceToken() ?: return
         try {
             api.trackWatch(token, mapOf(

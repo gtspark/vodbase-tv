@@ -24,6 +24,7 @@ import androidx.tv.material3.ButtonDefaults
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.vodbase.tv.data.repository.AuthRepository
@@ -42,8 +43,10 @@ class AuthViewModel @Inject constructor(
         private set
 
     private var currentToken: String? = null
+    private var pollingJob: Job? = null
 
     fun startQrLogin(onSuccess: () -> Unit) {
+        pollingJob?.cancel()
         viewModelScope.launch {
             try {
                 val response = authRepository.createQrSession()
@@ -63,8 +66,9 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun startPolling(onSuccess: () -> Unit) {
+        pollingJob?.cancel()
         isPolling = true
-        viewModelScope.launch {
+        pollingJob = viewModelScope.launch {
             val token = currentToken ?: return@launch
             repeat(150) { // 5 min at 2s intervals
                 if (!isPolling) return@launch
