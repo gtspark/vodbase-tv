@@ -94,22 +94,23 @@ fun DetailScreen(
         } else {
             Row(
                 modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(28.dp)
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Thumbnail
+                // Thumbnail - compact
                 AsyncImage(
                     model = vod.thumbnail,
                     contentDescription = vod.title,
                     modifier = Modifier
-                        .weight(1.2f)
+                        .weight(0.8f)
                         .aspectRatio(16f / 9f)
                         .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
 
-                // Metadata + buttons
+                // Metadata + buttons - more room
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1.2f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
