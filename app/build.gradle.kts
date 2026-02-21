@@ -62,9 +62,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:1.2.1")
     implementation("androidx.media3:media3-exoplayer-dash:1.2.1")
 
-    // NewPipe Extractor
+    // NewPipe Extractor (bundles its own nanojson)
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.24.5")
-    implementation("com.grack:nanojson:1.9")
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
