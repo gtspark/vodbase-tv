@@ -24,7 +24,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.MergingMediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -76,8 +80,18 @@ class PlayerViewModel @Inject constructor(
                 val stream = streamExtractor.extractStream(foundVod.youtubeId)
 
                 val exoPlayer = ExoPlayer.Builder(context).build()
-                val mediaItem = MediaItem.fromUri(stream.videoUrl)
-                exoPlayer.setMediaItem(mediaItem)
+
+                if (stream.isAdaptive && stream.audioUrl != null) {
+                    // Merge separate video + audio streams
+                    val dataSourceFactory = DefaultHttpDataSource.Factory()
+                    val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(stream.videoUrl))
+                    val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(stream.audioUrl))
+                    exoPlayer.setMediaSource(MergingMediaSource(videoSource, audioSource))
+                } else {
+                    exoPlayer.setMediaItem(MediaItem.fromUri(stream.videoUrl))
+                }
                 exoPlayer.prepare()
 
                 if (resumeSeconds > 0) {
