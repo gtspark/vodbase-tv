@@ -124,44 +124,43 @@ fun AuthScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0A0A0F)),
+            .background(Color(0xFF0A0A0F))
+            .padding(horizontal = 48.dp, vertical = 24.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(28.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Logo
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "VOD",
-                    fontSize = 44.sp,
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
                     color = Color(0xFFEF4444)
                 )
                 Text(
                     "BASE",
-                    fontSize = 44.sp,
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.White
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
             // QR Code with background
             viewModel.qrBitmap?.let { bitmap ->
                 Box(
                     modifier = Modifier
-                        .background(Color.White, RoundedCornerShape(16.dp))
-                        .padding(16.dp)
+                        .background(Color.White, RoundedCornerShape(12.dp))
+                        .padding(12.dp)
                 ) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = "QR Code",
                         modifier = Modifier
-                            .size(240.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .size(200.dp)
+                            .clip(RoundedCornerShape(6.dp))
                     )
                 }
             }
@@ -169,12 +168,12 @@ fun AuthScreen(
             // Status
             Text(
                 viewModel.status,
-                fontSize = 18.sp,
+                fontSize = 16.sp,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Skip button
             Button(
@@ -184,7 +183,7 @@ fun AuthScreen(
                     contentColor = Color(0xFF7A7A9A)
                 )
             ) {
-                Text("Continue without signing in", fontSize = 15.sp)
+                Text("Continue without signing in", fontSize = 14.sp)
             }
         }
     }

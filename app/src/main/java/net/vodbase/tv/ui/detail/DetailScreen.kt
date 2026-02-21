@@ -110,7 +110,7 @@ fun DetailScreen(
                     model = vod.thumbnail,
                     contentDescription = vod.title,
                     modifier = Modifier
-                        .weight(0.8f)
+                        .weight(1.4f)
                         .aspectRatio(16f / 9f)
                         .clip(theme.shape),
                     contentScale = ContentScale.Crop
@@ -118,7 +118,7 @@ fun DetailScreen(
 
                 // Metadata + buttons
                 Column(
-                    modifier = Modifier.weight(1.2f),
+                    modifier = Modifier.weight(0.6f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
