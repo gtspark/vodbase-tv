@@ -105,75 +105,61 @@ fun BrowseScreen(
     ) {
         if (viewModel.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = theme.primary)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Loading VODs...", color = theme.onSurface.copy(alpha = 0.5f), fontSize = 16.sp)
-                }
+                CircularProgressIndicator(color = theme.primary)
             }
         } else {
-            Column {
+            TvLazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 48.dp, vertical = 20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                item {
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
                             theme.channelName,
-                            fontSize = 32.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = theme.primary
                         )
                         if (viewModel.totalVods > 0) {
                             Text(
                                 "${viewModel.totalVods} VODs",
-                                fontSize = 16.sp,
-                                color = theme.onSurface.copy(alpha = 0.4f)
+                                fontSize = 13.sp,
+                                color = theme.onSurface.copy(alpha = 0.3f)
                             )
                         }
                     }
-                    Text(
-                        "Menu = Search",
-                        fontSize = 14.sp,
-                        color = theme.onSurface.copy(alpha = 0.3f)
-                    )
                 }
 
-                // Rows
-                TvLazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 48.dp),
-                    verticalArrangement = Arrangement.spacedBy(28.dp)
-                ) {
-                    items(viewModel.rows.size) { index ->
-                        val row = viewModel.rows[index]
-                        Column {
-                            Text(
-                                row.title,
-                                modifier = Modifier.padding(start = 48.dp, bottom = 14.dp),
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = theme.onSurface
-                            )
-                            TvLazyRow(
-                                contentPadding = PaddingValues(horizontal = 48.dp),
-                                horizontalArrangement = Arrangement.spacedBy(20.dp)
-                            ) {
-                                items(row.vods) { vod ->
-                                    VodCard(
-                                        vod = vod,
-                                        theme = theme,
-                                        isWatched = viewModel.watchedIds.contains(vod.id),
-                                        onClick = { onVodSelected(vod.id) }
-                                    )
-                                }
+                // VOD rows
+                items(viewModel.rows.size) { index ->
+                    val row = viewModel.rows[index]
+                    Column {
+                        Text(
+                            row.title,
+                            modifier = Modifier.padding(start = 32.dp, bottom = 8.dp),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = theme.onSurface.copy(alpha = 0.9f)
+                        )
+                        TvLazyRow(
+                            contentPadding = PaddingValues(horizontal = 32.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(row.vods) { vod ->
+                                VodCard(
+                                    vod = vod,
+                                    theme = theme,
+                                    isWatched = viewModel.watchedIds.contains(vod.id),
+                                    onClick = { onVodSelected(vod.id) }
+                                )
                             }
                         }
                     }

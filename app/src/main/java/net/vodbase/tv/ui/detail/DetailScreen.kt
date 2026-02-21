@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -11,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -22,8 +22,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tv.material3.Button
-import androidx.tv.material3.ButtonDefaults
 import coil.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -87,44 +85,45 @@ fun DetailScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(theme.background)
-            .padding(48.dp)
+            .padding(horizontal = 40.dp, vertical = 24.dp)
     ) {
         if (vod == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Loading...", color = theme.onSurface.copy(alpha = 0.5f), fontSize = 18.sp)
+                Text("Loading...", color = theme.onSurface.copy(alpha = 0.5f), fontSize = 16.sp)
             }
         } else {
             Row(
                 modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(40.dp)
+                horizontalArrangement = Arrangement.spacedBy(28.dp)
             ) {
                 // Thumbnail
                 AsyncImage(
                     model = vod.thumbnail,
                     contentDescription = vod.title,
                     modifier = Modifier
-                        .width(560.dp)
+                        .weight(1.2f)
                         .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(12.dp)),
+                        .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
 
-                // Metadata
+                // Metadata + buttons
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         vod.title,
-                        fontSize = 26.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = theme.onSurface,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 22.sp
                     )
 
                     // Meta row
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         MetaBadge(vod.duration, theme)
                         MetaBadge(vod.era, theme)
                         vod.gameContent?.let { MetaBadge(it, theme) }
@@ -132,7 +131,7 @@ fun DetailScreen(
 
                     Text(
                         vod.date,
-                        fontSize = 15.sp,
+                        fontSize = 12.sp,
                         color = theme.onSurface.copy(alpha = 0.4f)
                     )
 
@@ -140,39 +139,39 @@ fun DetailScreen(
                     vod.series?.let { series ->
                         Text(
                             "${series.name} - Part ${series.part}",
-                            fontSize = 16.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = theme.primary
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    // Action buttons
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        ThemedButton(
+                    // Action buttons - vertical stack for reliable D-pad nav
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ActionButton(
                             text = "Play",
                             onClick = { onPlay(0f) },
-                            theme = theme,
-                            isPrimary = true
+                            isBright = true,
+                            theme = theme
                         )
 
                         if (viewModel.resumeTime > 30) {
                             val mins = (viewModel.resumeTime / 60).toInt()
                             val secs = (viewModel.resumeTime % 60).toInt()
-                            ThemedButton(
+                            ActionButton(
                                 text = "Resume from ${mins}:${"%02d".format(secs)}",
                                 onClick = { onPlay(viewModel.resumeTime.toFloat()) },
-                                theme = theme,
-                                isPrimary = false
+                                isBright = false,
+                                theme = theme
                             )
                         }
 
-                        ThemedButton(
+                        ActionButton(
                             text = if (viewModel.isWatched) "Watched" else "Mark Watched",
                             onClick = { viewModel.markWatched(channel) },
+                            isBright = false,
                             theme = theme,
-                            isPrimary = false,
                             enabled = !viewModel.isWatched
                         )
                     }
@@ -183,37 +182,53 @@ fun DetailScreen(
 }
 
 @Composable
-fun ThemedButton(
+fun ActionButton(
     text: String,
     onClick: () -> Unit,
+    isBright: Boolean,
     theme: ChannelTheme,
-    isPrimary: Boolean,
     enabled: Boolean = true
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isFocused) 1.08f else 1f,
-        animationSpec = tween(durationMillis = 150),
-        label = "btnScale"
+    val borderAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 1f else 0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "btnBorder"
     )
 
-    Button(
-        onClick = onClick,
-        enabled = enabled,
+    val bgColor = when {
+        isFocused && isBright -> theme.primary
+        isFocused -> theme.primary.copy(alpha = 0.25f)
+        isBright -> theme.primary.copy(alpha = 0.8f)
+        else -> theme.surface
+    }
+    val textColor = when {
+        isFocused && isBright -> theme.background
+        isFocused -> Color.White
+        isBright -> theme.background
+        else -> theme.onSurface.copy(alpha = 0.7f)
+    }
+
+    Box(
         modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(bgColor)
+            .border(
+                width = if (isFocused) 2.dp else 0.dp,
+                color = theme.focusRing.copy(alpha = borderAlpha),
+                shape = RoundedCornerShape(6.dp)
+            )
             .onFocusChanged { isFocused = it.isFocused }
-            .scale(scale),
-        colors = ButtonDefaults.colors(
-            containerColor = if (isPrimary) theme.primary else theme.surface,
-            contentColor = if (isPrimary) theme.background else theme.onSurface,
-            focusedContainerColor = if (isPrimary) theme.primary else theme.focusRing.copy(alpha = 0.2f),
-            focusedContentColor = if (isPrimary) theme.background else Color.White
-        )
+            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
         Text(
             text,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp
+            fontSize = 14.sp,
+            color = if (!enabled) textColor.copy(alpha = 0.5f) else textColor
         )
     }
 }
@@ -222,12 +237,9 @@ fun ThemedButton(
 fun MetaBadge(text: String, theme: ChannelTheme) {
     Box(
         modifier = Modifier
-            .background(
-                theme.surface,
-                RoundedCornerShape(6.dp)
-            )
-            .padding(horizontal = 10.dp, vertical = 5.dp)
+            .background(theme.surface, RoundedCornerShape(4.dp))
+            .padding(horizontal = 6.dp, vertical = 3.dp)
     ) {
-        Text(text, fontSize = 13.sp, color = theme.onSurface.copy(alpha = 0.7f))
+        Text(text, fontSize = 11.sp, color = theme.onSurface.copy(alpha = 0.6f))
     }
 }

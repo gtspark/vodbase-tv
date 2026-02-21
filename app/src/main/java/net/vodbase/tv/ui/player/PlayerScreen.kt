@@ -21,6 +21,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import android.view.WindowManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -233,6 +234,15 @@ fun PlayerScreen(
     LaunchedEffect(vodId) {
         viewModel.loadAndPlay(context, channel, vodId, resumeTimeSeconds) { player ->
             exoPlayer = player
+        }
+    }
+
+    // Keep screen on while player is active
+    val activity = context as? android.app.Activity
+    DisposableEffect(Unit) {
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
