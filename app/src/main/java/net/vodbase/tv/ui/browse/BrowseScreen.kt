@@ -96,17 +96,25 @@ class BrowseViewModel @Inject constructor(
                     .filter { it.series != null }
                     .groupBy { it.series!!.name.trimEnd('(', ' ') } // fix trailing "(" from API
                     .filter { it.value.size >= 2 }
-                    .mapValues { (_, seriesVods) -> seriesVods.sortedBy { it.series!!.part } }
                     .entries
                     .sortedByDescending { it.value.size }
                     .take(10)
 
-                for ((seriesName, seriesVods) in seriesGroups) {
-                    // Clean up series name: "Jerma Streams - Casino, Inc." -> "Casino, Inc."
+                for ((seriesName, taggedParts) in seriesGroups) {
+                    // Find Part 1: VOD whose title matches the series base name (no "(Part N)")
+                    val part1 = vods.find { v ->
+                        v.series == null && v.title.trim().equals(seriesName.trim(), ignoreCase = true)
+                    }
+                    // Combine Part 1 (if found) + tagged parts, sorted by part number
+                    val allParts = buildList {
+                        part1?.let { add(it) }
+                        addAll(taggedParts.sortedBy { it.series!!.part })
+                    }
+
                     val displayName = seriesName
                         .replace(Regex("^\\w+ (Streams|Re-stream|Highlights)\\s*-\\s*"), "")
                         .ifEmpty { seriesName }
-                    rowList.add(VodRow("$displayName (${seriesVods.size} parts)", seriesVods))
+                    rowList.add(VodRow("$displayName (${allParts.size} parts)", allParts))
                 }
 
                 // Per era
