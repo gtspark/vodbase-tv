@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeProgressiveDashManifestCreator
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,6 +13,8 @@ data class ExtractedStream(
     val videoUrl: String,
     val audioUrl: String?,
     val hlsUrl: String?,
+    val videoDashManifest: String?,
+    val audioDashManifest: String?,
     val resolution: String,
     val isAdaptive: Boolean
 )
@@ -30,19 +33,51 @@ class StreamExtractor @Inject constructor() {
         // Prefer HLS (segment-based = fast seeking)
         val hlsUrl = info.hlsUrl?.takeIf { it.isNotBlank() }
 
-        // Also extract adaptive streams as fallback
+        // Extract adaptive streams (video-only + audio-only)
         val videoOnly = info.videoOnlyStreams
             .sortedByDescending { it.resolution?.replace("p", "")?.toIntOrNull() ?: 0 }
         val audioOnly = info.audioStreams
             .sortedByDescending { it.averageBitrate }
 
         if (videoOnly.isNotEmpty() && audioOnly.isNotEmpty()) {
-            val best = videoOnly.first()
+            val bestVideo = videoOnly.first()
+            val bestAudio = audioOnly.first()
+            val durationSec = info.duration // seconds
+
+            // Generate synthetic DASH manifests from progressive URLs
+            // This enables segment-based seeking (like HLS) instead of byte-range seeking
+            var videoDash: String? = null
+            var audioDash: String? = null
+
+            try {
+                val videoItag = bestVideo.itagItem
+                if (videoItag != null && bestVideo.isUrl) {
+                    videoDash = YoutubeProgressiveDashManifestCreator
+                        .fromProgressiveStreamingUrl(bestVideo.content, videoItag, durationSec)
+                    android.util.Log.i("VodPlayer", "Generated DASH manifest for video (itag=${videoItag.id})")
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("VodPlayer", "Failed to generate video DASH manifest: ${e.message}")
+            }
+
+            try {
+                val audioItag = bestAudio.itagItem
+                if (audioItag != null && bestAudio.isUrl) {
+                    audioDash = YoutubeProgressiveDashManifestCreator
+                        .fromProgressiveStreamingUrl(bestAudio.content, audioItag, durationSec)
+                    android.util.Log.i("VodPlayer", "Generated DASH manifest for audio (itag=${audioItag.id})")
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("VodPlayer", "Failed to generate audio DASH manifest: ${e.message}")
+            }
+
             return@withContext ExtractedStream(
-                videoUrl = best.content,
-                audioUrl = audioOnly.first().content,
+                videoUrl = bestVideo.content,
+                audioUrl = bestAudio.content,
                 hlsUrl = hlsUrl,
-                resolution = best.resolution ?: "unknown",
+                videoDashManifest = videoDash,
+                audioDashManifest = audioDash,
+                resolution = bestVideo.resolution ?: "unknown",
                 isAdaptive = true
             )
         }
@@ -58,6 +93,8 @@ class StreamExtractor @Inject constructor() {
                 videoUrl = best.content,
                 audioUrl = null,
                 hlsUrl = hlsUrl,
+                videoDashManifest = null,
+                audioDashManifest = null,
                 resolution = best.resolution ?: "unknown",
                 isAdaptive = false
             )
@@ -69,6 +106,8 @@ class StreamExtractor @Inject constructor() {
                 videoUrl = hlsUrl,
                 audioUrl = null,
                 hlsUrl = hlsUrl,
+                videoDashManifest = null,
+                audioDashManifest = null,
                 resolution = "auto",
                 isAdaptive = false
             )

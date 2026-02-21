@@ -102,11 +102,21 @@ class BrowseViewModel @Inject constructor(
                     .take(10)
 
                 for ((seriesName, seriesVods) in seriesGroups) {
-                    // Find Part 1: title that matches the series name but has no series tag
-                    // e.g. "Jerma Streams - Elden Ring" is Part 1 of series "Jerma Streams - Elden Ring"
-                    val part1 = vods.find { v ->
-                        v.series == null && v.title.trim().equals(seriesName.trim(), ignoreCase = true)
-                    }
+                    // Find Part 1: VOD with no series tag whose title matches or starts with
+                    // the series name. Handles cases like:
+                    //   Series: "Jerma Streams - Sorcery!" → Part 1: "Jerma Streams - Sorcery! (2nd Playthrough)"
+                    //   Series: "Jerma Streams - House Flipper 2" → Part 1: "Jerma Streams - House Flipper 2"
+                    val firstPart = seriesVods.minOf { it.series!!.part }
+                    val part1Candidates = if (firstPart > 1) {
+                        vods.filter { v ->
+                            v.series == null && (
+                                v.title.trim().equals(seriesName.trim(), ignoreCase = true) ||
+                                v.title.trim().startsWith(seriesName.trim(), ignoreCase = true)
+                            )
+                        }
+                    } else emptyList()
+                    // Only use Part 1 candidate if we're actually missing Part 1
+                    val part1 = part1Candidates.firstOrNull()
                     val allParts = buildList {
                         part1?.let { add(it) }
                         addAll(seriesVods)
