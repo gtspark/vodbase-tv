@@ -48,6 +48,7 @@ class SearchViewModel @Inject constructor(
 @Composable
 fun SearchScreen(
     channel: String,
+    initialQuery: String = "",
     onVodSelected: (String) -> Unit,
     onBack: () -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
@@ -57,6 +58,13 @@ fun SearchScreen(
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
+    }
+
+    // Auto-trigger search for voice queries
+    LaunchedEffect(initialQuery) {
+        if (initialQuery.isNotBlank()) {
+            viewModel.updateQuery(channel, initialQuery)
+        }
     }
 
     Box(

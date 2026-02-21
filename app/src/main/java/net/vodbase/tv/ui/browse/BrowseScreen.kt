@@ -6,7 +6,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -151,6 +154,7 @@ fun BrowseScreen(
     channel: String,
     onVodSelected: (String) -> Unit,
     onSearch: () -> Unit,
+    onShuffle: () -> Unit = {},
     onBack: () -> Unit,
     viewModel: BrowseViewModel = hiltViewModel()
 ) {
@@ -211,6 +215,30 @@ fun BrowseScreen(
                                 "${viewModel.totalVods} VODs",
                                 fontSize = 13.sp,
                                 color = theme.onSurface.copy(alpha = 0.3f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        // Shuffle button
+                        val shuffleInteraction = remember { MutableInteractionSource() }
+                        val shuffleFocused by shuffleInteraction.collectIsFocusedAsState()
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (shuffleFocused) theme.primary
+                                    else theme.primary.copy(alpha = 0.15f)
+                                )
+                                .clickable(
+                                    interactionSource = shuffleInteraction,
+                                    indication = null
+                                ) { onShuffle() }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                "Shuffle",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (shuffleFocused) theme.background else theme.primary
                             )
                         }
                     }

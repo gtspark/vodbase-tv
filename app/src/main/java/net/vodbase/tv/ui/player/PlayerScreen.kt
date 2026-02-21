@@ -19,6 +19,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import android.view.WindowManager
@@ -45,6 +46,7 @@ import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -80,6 +82,13 @@ class PlayerViewModel @Inject constructor(
     // Seek accumulator - shows pending seek target while user is scrubbing
     var pendingSeekMs by mutableStateOf<Long?>(null)
         private set
+    // Auto-advance state
+    var videoEnded by mutableStateOf(false)
+    var upNextVod by mutableStateOf<Vod?>(null)
+        private set
+    var upNextCountdown by mutableStateOf<Int?>(null)
+        private set
+    private var countdownJob: Job? = null
 
     private var player: ExoPlayer? = null
     private var overlayJob: Job? = null
@@ -189,6 +198,19 @@ class PlayerViewModel @Inject constructor(
                             else -> "UNKNOWN($state)"
                         }
                         android.util.Log.i("VodPlayer", "State=$stateName pos=${exoPlayer.currentPosition}ms buf=${exoPlayer.bufferedPosition}ms")
+                        if (state == Player.STATE_ENDED) {
+                            // Mark watched if not already done via position tracking
+                            if (!hasMarkedWatched) {
+                                hasMarkedWatched = true
+                                val ch = channelId ?: return
+                                val v = vod ?: return
+                                viewModelScope.launch {
+                                    progressRepository.markWatched(ch, v.id, v.title, v.duration)
+                                }
+                            }
+                            // Signal the composable to start the up-next countdown
+                            videoEnded = true
+                        }
                     }
                 })
 
@@ -316,6 +338,77 @@ class PlayerViewModel @Inject constructor(
         showOverlayBriefly()
     }
 
+    /**
+     * Finds the next VOD to play after the current one ends.
+     * - If the current VOD is part of a series, returns the next part.
+     * - Otherwise, picks a random unwatched VOD from the channel.
+     */
+    private suspend fun findNextVod(): Vod? {
+        val ch = channelId ?: return null
+        val currentVod = vod ?: return null
+
+        // Series: look for the next part
+        val series = currentVod.series
+        if (series != null) {
+            val seriesVods = vodRepository.getSeriesVods(ch, series.name)
+            val nextPart = seriesVods.find { it.series?.part == series.part + 1 }
+            if (nextPart != null) return nextPart
+        }
+
+        // No next series part (or not a series): pick random unwatched
+        val allVods = vodRepository.getVods(ch)
+        val watchedIds = progressRepository.getWatchedIds(ch)
+        val unwatched = allVods.filter { it.id != currentVod.id && !watchedIds.contains(it.id) }
+        return if (unwatched.isNotEmpty()) unwatched.random() else allVods.filter { it.id != currentVod.id }.randomOrNull()
+    }
+
+    /**
+     * Starts the 10-second up-next countdown. Calls onAdvance with the next VOD id when it reaches 0.
+     */
+    fun startUpNextCountdown(onAdvance: (String) -> Unit) {
+        countdownJob?.cancel()
+        countdownJob = viewModelScope.launch {
+            val next = findNextVod()
+            if (next == null) {
+                android.util.Log.i("VodPlayer", "Up Next: no next VOD found")
+                return@launch
+            }
+            upNextVod = next
+            upNextCountdown = 10
+            android.util.Log.i("VodPlayer", "Up Next: '${next.title}' in 10s")
+            for (i in 10 downTo 1) {
+                upNextCountdown = i
+                delay(1000)
+            }
+            upNextCountdown = 0
+            val nextId = upNextVod?.id ?: return@launch
+            onAdvance(nextId)
+        }
+    }
+
+    /**
+     * Cancels the up-next countdown and hides the overlay.
+     */
+    fun cancelUpNext() {
+        countdownJob?.cancel()
+        countdownJob = null
+        upNextVod = null
+        upNextCountdown = null
+        videoEnded = false
+    }
+
+    /**
+     * Immediately advances to the up-next VOD, cancelling the countdown timer.
+     */
+    fun playUpNextNow(onAdvance: (String) -> Unit) {
+        val nextId = upNextVod?.id ?: return
+        countdownJob?.cancel()
+        countdownJob = null
+        upNextVod = null
+        upNextCountdown = null
+        onAdvance(nextId)
+    }
+
     fun release() {
         player?.release()
         player = null
@@ -353,6 +446,13 @@ fun PlayerScreen(
     LaunchedEffect(vodId) {
         viewModel.loadAndPlay(context, channel, vodId, resumeTimeSeconds) { player ->
             exoPlayer = player
+        }
+    }
+
+    // Auto-advance on video end
+    LaunchedEffect(viewModel.videoEnded) {
+        if (viewModel.videoEnded) {
+            viewModel.startUpNextCountdown { nextId -> onNextVod(nextId) }
         }
     }
 
@@ -397,14 +497,26 @@ fun PlayerScreen(
             .onPreviewKeyEvent { event ->
                 if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
                 when (event.nativeKeyEvent.keyCode) {
-                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ->
-                        { viewModel.togglePlayPause(exoPlayer); true }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                        if (viewModel.upNextVod != null) {
+                            viewModel.playUpNextNow { onNextVod(it) }
+                        } else {
+                            viewModel.togglePlayPause(exoPlayer)
+                        }
+                        true
+                    }
                     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND ->
                         { viewModel.seekBy(exoPlayer, -1); true }
                     KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD ->
                         { viewModel.seekBy(exoPlayer, 1); true }
-                    KeyEvent.KEYCODE_BACK ->
-                        { onBack(); true }
+                    KeyEvent.KEYCODE_BACK -> {
+                        if (viewModel.upNextVod != null) {
+                            viewModel.cancelUpNext()
+                        } else {
+                            onBack()
+                        }
+                        true
+                    }
                     KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN ->
                         { viewModel.toggleOverlay(); true }
                     else -> false
@@ -564,6 +676,73 @@ fun PlayerScreen(
                             fontSize = 15.sp,
                             color = Color.White.copy(alpha = 0.7f)
                         )
+                    }
+                }
+            }
+        }
+
+        // Up Next overlay - shown when video ends and a next VOD is found
+        if (viewModel.videoEnded) {
+            viewModel.upNextVod?.let { nextVod ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.BottomEnd
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .width(320.dp)
+                            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            "Up Next",
+                            fontSize = 13.sp,
+                            color = theme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        AsyncImage(
+                            model = nextVod.thumbnail,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            nextVod.title,
+                            fontSize = 14.sp,
+                            color = Color.White,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        nextVod.series?.let {
+                            Text(
+                                "Part ${it.part}",
+                                fontSize = 12.sp,
+                                color = theme.primary.copy(alpha = 0.7f)
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                "Playing in ${viewModel.upNextCountdown}s",
+                                fontSize = 13.sp,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                            Text(
+                                "OK to play now",
+                                fontSize = 13.sp,
+                                color = theme.primary
+                            )
+                        }
                     }
                 }
             }
