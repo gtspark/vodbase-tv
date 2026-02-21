@@ -5,11 +5,15 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
@@ -26,7 +30,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
@@ -55,8 +58,15 @@ class PlayerViewModel @Inject constructor(
         private set
     var showOverlay by mutableStateOf(false)
         private set
+    var isPlaying by mutableStateOf(false)
+        private set
+    var currentPositionMs by mutableStateOf(0L)
+        private set
+    var durationMs by mutableStateOf(0L)
+        private set
 
     private var player: ExoPlayer? = null
+    private var overlayJob: kotlinx.coroutines.Job? = null
 
     fun loadAndPlay(
         context: android.content.Context,
@@ -82,7 +92,6 @@ class PlayerViewModel @Inject constructor(
                 val exoPlayer = ExoPlayer.Builder(context).build()
 
                 if (stream.isAdaptive && stream.audioUrl != null) {
-                    // Merge separate video + audio streams
                     val dataSourceFactory = DefaultHttpDataSource.Factory()
                     val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.videoUrl))
@@ -99,10 +108,18 @@ class PlayerViewModel @Inject constructor(
                 }
 
                 exoPlayer.playWhenReady = true
+                exoPlayer.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(playing: Boolean) {
+                        isPlaying = playing
+                    }
+                })
+
                 player = exoPlayer
                 onPlayerReady(exoPlayer)
                 isLoading = false
 
+                // Position tracking loop (updates UI every 500ms)
+                startPositionTracking(exoPlayer)
                 // Progress save loop
                 startProgressSaving(channelId, foundVod, exoPlayer)
             } catch (e: Exception) {
@@ -112,28 +129,50 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun startProgressSaving(channelId: String, vod: Vod, player: ExoPlayer) {
+    private fun startPositionTracking(player: ExoPlayer) {
         viewModelScope.launch {
             while (true) {
-                delay(30_000) // Save every 30s
-                if (player.isPlaying) {
-                    val currentTime = player.currentPosition / 1000.0
-                    val duration = player.duration / 1000.0
-                    progressRepository.saveProgress(
-                        channelId, vod.id, vod.title, vod.url, currentTime, duration
-                    )
-                }
+                delay(500)
+                try {
+                    currentPositionMs = player.currentPosition
+                    durationMs = player.duration.coerceAtLeast(0)
+                } catch (_: Exception) { }
             }
         }
     }
 
-    fun toggleOverlay() {
-        showOverlay = !showOverlay
-        if (showOverlay) {
-            viewModelScope.launch {
-                delay(5000)
-                showOverlay = false
+    private fun startProgressSaving(channelId: String, vod: Vod, player: ExoPlayer) {
+        viewModelScope.launch {
+            while (true) {
+                delay(30_000)
+                try {
+                    if (player.isPlaying) {
+                        val currentTime = player.currentPosition / 1000.0
+                        val duration = player.duration / 1000.0
+                        progressRepository.saveProgress(
+                            channelId, vod.id, vod.title, vod.url, currentTime, duration
+                        )
+                    }
+                } catch (_: Exception) { }
             }
+        }
+    }
+
+    fun showOverlayBriefly() {
+        showOverlay = true
+        overlayJob?.cancel()
+        overlayJob = viewModelScope.launch {
+            delay(5000)
+            showOverlay = false
+        }
+    }
+
+    fun toggleOverlay() {
+        if (showOverlay) {
+            overlayJob?.cancel()
+            showOverlay = false
+        } else {
+            showOverlayBriefly()
         }
     }
 
@@ -152,17 +191,21 @@ class PlayerViewModel @Inject constructor(
         showOverlayBriefly()
     }
 
-    private fun showOverlayBriefly() {
-        showOverlay = true
-        viewModelScope.launch {
-            delay(5000)
-            showOverlay = false
-        }
-    }
-
     fun release() {
         player?.release()
         player = null
+    }
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
     }
 }
 
@@ -230,7 +273,7 @@ fun PlayerScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = theme.primary)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Loading VOD...", color = Color.White)
+                    Text("Extracting stream...", color = Color.White, fontSize = 14.sp)
                 }
             }
         }
@@ -238,7 +281,25 @@ fun PlayerScreen(
         // Error
         viewModel.error?.let { err ->
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(err, color = Color(0xFFEF4444), fontSize = 18.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(err, color = Color(0xFFEF4444), fontSize = 18.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Press BACK to return", color = Color(0xFF7A7A9A), fontSize = 14.sp)
+                }
+            }
+        }
+
+        // Pause indicator (center of screen, brief)
+        if (!viewModel.isPlaying && !viewModel.isLoading && viewModel.error == null && exoPlayer != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(36.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("II", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
             }
         }
 
@@ -248,26 +309,81 @@ fun PlayerScreen(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Top bar
-                Row(
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Top gradient + title
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .align(Alignment.TopCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
+                            )
+                        )
+                        .padding(horizontal = 32.dp, vertical = 16.dp)
                 ) {
                     Text(
                         viewModel.vod?.title ?: "",
-                        fontSize = 16.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-                Spacer(modifier = Modifier.weight(1f))
+
+                // Bottom gradient + progress bar + time
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+                            )
+                        )
+                        .padding(horizontal = 32.dp, vertical = 20.dp)
+                ) {
+                    // Progress bar
+                    val progress = if (viewModel.durationMs > 0) {
+                        (viewModel.currentPositionMs.toFloat() / viewModel.durationMs.toFloat()).coerceIn(0f, 1f)
+                    } else 0f
+
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = theme.primary,
+                        trackColor = Color.White.copy(alpha = 0.3f)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Time row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            formatTime(viewModel.currentPositionMs),
+                            fontSize = 14.sp,
+                            color = Color.White
+                        )
+                        // Play state indicator
+                        Text(
+                            if (viewModel.isPlaying) "Playing" else "Paused",
+                            fontSize = 14.sp,
+                            color = if (viewModel.isPlaying) theme.primary else Color(0xFFFF9800)
+                        )
+                        Text(
+                            formatTime(viewModel.durationMs),
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
             }
         }
     }
