@@ -20,12 +20,15 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -242,6 +245,20 @@ fun PlayerScreen(
         onDispose { viewModel.release() }
     }
 
+    // Pause on home button / app backgrounded
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                exoPlayer?.pause()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -284,7 +301,7 @@ fun PlayerScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = theme.primary)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Extracting stream...", color = Color.White, fontSize = 14.sp)
+                    Text("Extracting stream...", color = Color.White, fontSize = 16.sp)
                 }
             }
         }
@@ -293,23 +310,23 @@ fun PlayerScreen(
         viewModel.error?.let { err ->
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(err, color = Color(0xFFEF4444), fontSize = 18.sp)
+                    Text(err, color = Color(0xFFEF4444), fontSize = 20.sp)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Press BACK to return", color = Color(0xFF7A7A9A), fontSize = 14.sp)
+                    Text("Press BACK to return", color = Color(0xFF7A7A9A), fontSize = 16.sp)
                 }
             }
         }
 
-        // Pause indicator (center of screen, brief)
+        // Pause indicator (center of screen)
         if (!viewModel.isPlaying && !viewModel.isLoading && viewModel.error == null && exoPlayer != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Box(
                     modifier = Modifier
-                        .size(72.dp)
-                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(36.dp)),
+                        .size(80.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(40.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("II", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("II", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }
@@ -331,11 +348,11 @@ fun PlayerScreen(
                                 colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
                             )
                         )
-                        .padding(horizontal = 32.dp, vertical = 16.dp)
+                        .padding(horizontal = 40.dp, vertical = 20.dp)
                 ) {
                     Text(
                         viewModel.vod?.title ?: "",
-                        fontSize = 18.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White,
                         maxLines = 1,
@@ -353,7 +370,7 @@ fun PlayerScreen(
                                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
                             )
                         )
-                        .padding(horizontal = 32.dp, vertical = 20.dp)
+                        .padding(horizontal = 40.dp, vertical = 24.dp)
                 ) {
                     // Progress bar
                     val progress = if (viewModel.durationMs > 0) {
@@ -370,7 +387,7 @@ fun PlayerScreen(
                         trackColor = Color.White.copy(alpha = 0.3f)
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Time row
                     Row(
@@ -379,18 +396,19 @@ fun PlayerScreen(
                     ) {
                         Text(
                             formatTime(viewModel.currentPositionMs),
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             color = Color.White
                         )
                         // Play state indicator
                         Text(
                             if (viewModel.isPlaying) "Playing" else "Paused",
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
                             color = if (viewModel.isPlaying) theme.primary else Color(0xFFFF9800)
                         )
                         Text(
                             formatTime(viewModel.durationMs),
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             color = Color.White.copy(alpha = 0.7f)
                         )
                     }

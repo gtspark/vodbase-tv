@@ -1,5 +1,6 @@
 package net.vodbase.tv.ui.browse
 
+import android.view.KeyEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
@@ -8,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,12 +42,15 @@ class BrowseViewModel @Inject constructor(
         private set
     var watchedIds by mutableStateOf<Set<String>>(emptySet())
         private set
+    var totalVods by mutableStateOf(0)
+        private set
 
     fun loadChannel(channelId: String) {
         viewModelScope.launch {
             isLoading = true
             try {
                 val vods = vodRepository.getVods(channelId)
+                totalVods = vods.size
                 watchedIds = progressRepository.getWatchedIds(channelId)
 
                 val eras = listOf("Latest", "Peak Era", "Golden Era", "Classic Era")
@@ -58,7 +63,7 @@ class BrowseViewModel @Inject constructor(
                 for (era in eras) {
                     val eraVods = vods.filter { it.era == era }
                     if (eraVods.isNotEmpty()) {
-                        rowList.add(VodRow(era, eraVods.take(30)))
+                        rowList.add(VodRow("$era (${eraVods.size})", eraVods.take(30)))
                     }
                 }
 
@@ -89,10 +94,22 @@ fun BrowseScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(theme.background)
+            .onPreviewKeyEvent { event ->
+                if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                when (event.nativeKeyEvent.keyCode) {
+                    KeyEvent.KEYCODE_BACK -> { onBack(); true }
+                    KeyEvent.KEYCODE_SEARCH, KeyEvent.KEYCODE_MENU -> { onSearch(); true }
+                    else -> false
+                }
+            }
     ) {
         if (viewModel.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = theme.primary)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = theme.primary)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Loading VODs...", color = theme.onSurface.copy(alpha = 0.5f), fontSize = 16.sp)
+                }
             }
         } else {
             Column {
@@ -100,15 +117,32 @@ fun BrowseScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 48.dp, vertical = 16.dp),
+                        .padding(horizontal = 48.dp, vertical = 20.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            theme.channelName,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = theme.primary
+                        )
+                        if (viewModel.totalVods > 0) {
+                            Text(
+                                "${viewModel.totalVods} VODs",
+                                fontSize = 16.sp,
+                                color = theme.onSurface.copy(alpha = 0.4f)
+                            )
+                        }
+                    }
                     Text(
-                        theme.channelName,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = theme.primary
+                        "Menu = Search",
+                        fontSize = 14.sp,
+                        color = theme.onSurface.copy(alpha = 0.3f)
                     )
                 }
 
@@ -116,21 +150,21 @@ fun BrowseScreen(
                 TvLazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 48.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    verticalArrangement = Arrangement.spacedBy(28.dp)
                 ) {
                     items(viewModel.rows.size) { index ->
                         val row = viewModel.rows[index]
                         Column {
                             Text(
                                 row.title,
-                                modifier = Modifier.padding(start = 48.dp, bottom = 12.dp),
-                                fontSize = 20.sp,
+                                modifier = Modifier.padding(start = 48.dp, bottom = 14.dp),
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = theme.onSurface
                             )
                             TvLazyRow(
                                 contentPadding = PaddingValues(horizontal = 48.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                horizontalArrangement = Arrangement.spacedBy(20.dp)
                             ) {
                                 items(row.vods) { vod ->
                                     VodCard(

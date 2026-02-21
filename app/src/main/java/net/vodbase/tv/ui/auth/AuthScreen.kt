@@ -4,11 +4,12 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
@@ -128,41 +129,52 @@ fun AuthScreen(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(28.dp)
         ) {
             // Logo
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "VOD",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
                     color = Color(0xFFEF4444)
                 )
                 Text(
                     "BASE",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
                     color = Color.White
                 )
             }
 
-            // QR Code
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // QR Code with background
             viewModel.qrBitmap?.let { bitmap ->
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = "QR Code",
-                    modifier = Modifier.size(240.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .background(Color.White, RoundedCornerShape(16.dp))
+                        .padding(16.dp)
+                ) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "QR Code",
+                        modifier = Modifier
+                            .size(240.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                }
             }
 
             // Status
             Text(
                 viewModel.status,
-                style = MaterialTheme.typography.bodyLarge,
+                fontSize = 18.sp,
+                color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Skip button
             Button(
@@ -172,7 +184,7 @@ fun AuthScreen(
                     contentColor = Color(0xFF7A7A9A)
                 )
             ) {
-                Text("Continue without signing in")
+                Text("Continue without signing in", fontSize = 15.sp)
             }
         }
     }
