@@ -130,11 +130,13 @@ class PlayerViewModel @Inject constructor(
                     .setReadTimeoutMs(15_000)
                     .setAllowCrossProtocolRedirects(true)
 
+                val sourceType: String
                 if (stream.hlsUrl != null) {
                     // HLS: segment-based = fast seeking, auto-adaptive quality
                     val hlsSource = HlsMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.hlsUrl))
                     exoPlayer.setMediaSource(hlsSource)
+                    sourceType = "HLS"
                 } else if (stream.isAdaptive && stream.audioUrl != null) {
                     // Fallback: progressive adaptive (slow seeking)
                     val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
@@ -142,9 +144,13 @@ class PlayerViewModel @Inject constructor(
                     val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.audioUrl))
                     exoPlayer.setMediaSource(MergingMediaSource(videoSource, audioSource))
+                    sourceType = "Progressive+Merge"
                 } else {
                     exoPlayer.setMediaItem(MediaItem.fromUri(stream.videoUrl))
+                    sourceType = "Progressive"
                 }
+
+                android.util.Log.i("VodPlayer", "Source: $sourceType | HLS=${stream.hlsUrl != null} | Res=${stream.resolution}")
                 exoPlayer.prepare()
 
                 if (resumeSeconds > 0) {
@@ -155,6 +161,17 @@ class PlayerViewModel @Inject constructor(
                 exoPlayer.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(playing: Boolean) {
                         isPlaying = playing
+                        android.util.Log.i("VodPlayer", "isPlaying=$playing pos=${exoPlayer.currentPosition}ms")
+                    }
+                    override fun onPlaybackStateChanged(state: Int) {
+                        val stateName = when(state) {
+                            Player.STATE_IDLE -> "IDLE"
+                            Player.STATE_BUFFERING -> "BUFFERING"
+                            Player.STATE_READY -> "READY"
+                            Player.STATE_ENDED -> "ENDED"
+                            else -> "UNKNOWN($state)"
+                        }
+                        android.util.Log.i("VodPlayer", "State=$stateName pos=${exoPlayer.currentPosition}ms buf=${exoPlayer.bufferedPosition}ms")
                     }
                 })
 
@@ -269,6 +286,7 @@ class PlayerViewModel @Inject constructor(
         seekJob?.cancel()
         seekJob = viewModelScope.launch {
             delay(400)
+            android.util.Log.i("VodPlayer", "SEEK from=${player.currentPosition}ms to=${newTarget}ms delta=${newTarget - player.currentPosition}ms")
             player.seekTo(newTarget)
             pendingSeekMs = null
         }

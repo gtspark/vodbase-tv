@@ -102,12 +102,21 @@ class BrowseViewModel @Inject constructor(
                     .take(10)
 
                 for ((seriesName, seriesVods) in seriesGroups) {
-                    // Clean display name: strip "Jerma Streams -", "Sips Plays", etc.
+                    // Find Part 1: title that matches the series name but has no series tag
+                    // e.g. "Jerma Streams - Elden Ring" is Part 1 of series "Jerma Streams - Elden Ring"
+                    val part1 = vods.find { v ->
+                        v.series == null && v.title.trim().equals(seriesName.trim(), ignoreCase = true)
+                    }
+                    val allParts = buildList {
+                        part1?.let { add(it) }
+                        addAll(seriesVods)
+                    }
+
                     val displayName = seriesName
                         .replace(Regex("^\\w+\\s+(Streams|Re-stream|Highlights)\\s*-\\s*"), "")
                         .replace(Regex("^\\w+\\s+Plays\\s+"), "")
                         .ifEmpty { seriesName }
-                    rowList.add(VodRow("$displayName (${seriesVods.size} parts)", seriesVods))
+                    rowList.add(VodRow("$displayName (${allParts.size} parts)", allParts))
                 }
 
                 // Per era
