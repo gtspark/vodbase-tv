@@ -47,7 +47,7 @@ android {
 
 dependencies {
     // Compose for TV
-    implementation("androidx.tv:tv-foundation:1.0.0-rc02")
+    implementation("androidx.tv:tv-foundation:1.0.0-alpha11")
     implementation("androidx.tv:tv-material:1.0.0")
     implementation("androidx.compose.ui:ui:1.6.1")
     implementation("androidx.compose.ui:ui-graphics:1.6.1")
@@ -63,7 +63,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-dash:1.2.1")
 
     // NewPipe Extractor
-    implementation("com.github.AioiLight:NewPipeExtractor:v0.24.5")
+    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.24.5")
     implementation("com.grack:nanojson:1.9")
 
     // Networking
