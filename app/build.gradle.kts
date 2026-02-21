@@ -9,6 +9,18 @@ android {
     namespace = "net.vodbase.tv"
     compileSdk = 34
 
+    signingConfigs {
+        getByName("debug") {
+            val customKeystore = file("debug.keystore")
+            if (customKeystore.exists()) {
+                storeFile = customKeystore
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: "vodbase123"
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: "vodbase-debug"
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: "vodbase123"
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "net.vodbase.tv"
         minSdk = 25  // Fire TV 2nd gen+
