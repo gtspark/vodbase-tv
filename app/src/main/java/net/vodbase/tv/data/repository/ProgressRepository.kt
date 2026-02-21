@@ -11,12 +11,24 @@ class ProgressRepository @Inject constructor(
 ) {
     private val watchedCache = mutableMapOf<String, MutableSet<String>>()
 
+    data class ResumeInfo(
+        val vodId: String,
+        val title: String?,
+        val currentTime: Double,
+        val duration: Double
+    )
+
     suspend fun getResumePosition(streamer: String): Pair<String, Double>? {
+        val info = getResumeInfo(streamer) ?: return null
+        return Pair(info.vodId, info.currentTime)
+    }
+
+    suspend fun getResumeInfo(streamer: String): ResumeInfo? {
         val token = authRepository.getDeviceToken() ?: return null
         return try {
             val progress = api.getProgress(streamer, token)
             progress.lastWatchedVideo?.let { lw ->
-                if (lw.resumeAvailable) Pair(lw.id, lw.currentTime) else null
+                if (lw.resumeAvailable) ResumeInfo(lw.id, lw.title, lw.currentTime, lw.duration) else null
             }
         } catch (e: Exception) {
             null

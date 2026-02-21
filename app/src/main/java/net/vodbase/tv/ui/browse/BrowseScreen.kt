@@ -1,17 +1,25 @@
 package net.vodbase.tv.ui.browse
 
 import android.view.KeyEvent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -20,16 +28,24 @@ import androidx.lifecycle.viewModelScope
 import androidx.tv.foundation.lazy.list.TvLazyColumn
 import androidx.tv.foundation.lazy.list.TvLazyRow
 import androidx.tv.foundation.lazy.list.items
+import coil.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import net.vodbase.tv.data.model.Channel
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.data.repository.ProgressRepository
 import net.vodbase.tv.data.repository.VodRepository
+import net.vodbase.tv.ui.theme.ChannelTheme
 import net.vodbase.tv.ui.theme.ChannelThemes
 import javax.inject.Inject
 
 data class VodRow(val title: String, val vods: List<Vod>)
+
+data class ContinueWatchingInfo(
+    val vod: Vod,
+    val currentTime: Double,
+    val duration: Double
+)
 
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
@@ -45,6 +61,8 @@ class BrowseViewModel @Inject constructor(
         private set
     var totalVods by mutableStateOf(0)
         private set
+    var continueWatching by mutableStateOf<ContinueWatchingInfo?>(null)
+        private set
 
     fun loadChannel(channelId: String) {
         viewModelScope.launch {
@@ -53,6 +71,19 @@ class BrowseViewModel @Inject constructor(
                 val vods = vodRepository.getVods(channelId)
                 totalVods = vods.size
                 watchedIds = progressRepository.getWatchedIds(channelId)
+
+                // Check for resume position
+                val resumeInfo = progressRepository.getResumeInfo(channelId)
+                if (resumeInfo != null) {
+                    val matchingVod = vods.find { it.id == resumeInfo.vodId }
+                    if (matchingVod != null) {
+                        continueWatching = ContinueWatchingInfo(
+                            vod = matchingVod,
+                            currentTime = resumeInfo.currentTime,
+                            duration = resumeInfo.duration
+                        )
+                    }
+                }
 
                 val eras = listOf("Latest", "Peak Era", "Golden Era", "Classic Era")
                 val rowList = mutableListOf<VodRow>()
@@ -147,6 +178,17 @@ fun BrowseScreen(
                     }
                 }
 
+                // Continue Watching hero card
+                viewModel.continueWatching?.let { cw ->
+                    item {
+                        ContinueWatchingHero(
+                            info = cw,
+                            theme = theme,
+                            onResume = { onVodSelected(cw.vod.id) }
+                        )
+                    }
+                }
+
                 // VOD rows
                 items(viewModel.rows.size) { index ->
                     val row = viewModel.rows[index]
@@ -169,6 +211,137 @@ fun BrowseScreen(
                                     isWatched = viewModel.watchedIds.contains(vod.id),
                                     onClick = { onVodSelected(vod.id) }
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ContinueWatchingHero(
+    info: ContinueWatchingInfo,
+    theme: ChannelTheme,
+    onResume: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val borderAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 1f else 0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "heroBorder"
+    )
+
+    val progressFraction = if (info.duration > 0) (info.currentTime / info.duration).toFloat().coerceIn(0f, 1f) else 0f
+    val mins = (info.currentTime / 60).toInt()
+    val secs = (info.currentTime % 60).toInt()
+    val totalMins = (info.duration / 60).toInt()
+
+    Column(modifier = Modifier.padding(horizontal = 32.dp)) {
+        Text(
+            "Continue Watching",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = theme.primary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp)
+                .clip(theme.shape)
+                .background(theme.surface)
+                .border(
+                    width = if (isFocused) 2.dp else 1.dp,
+                    color = if (isFocused) theme.focusRing.copy(alpha = borderAlpha)
+                    else theme.primary.copy(alpha = 0.15f),
+                    shape = theme.shape
+                )
+                .onFocusChanged { isFocused = it.isFocused }
+                .clickable { onResume() }
+        ) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                // Large thumbnail
+                Box(modifier = Modifier.weight(1.2f).fillMaxHeight()) {
+                    AsyncImage(
+                        model = info.vod.thumbnail,
+                        contentDescription = info.vod.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    // Progress bar overlay at bottom of thumbnail
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .background(Color.Black.copy(alpha = 0.5f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(progressFraction)
+                                .background(theme.primary)
+                        )
+                    }
+                }
+
+                // Info panel
+                Column(
+                    modifier = Modifier
+                        .weight(0.8f)
+                        .fillMaxHeight()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        info.vod.title,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isFocused) Color.White else theme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 19.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Resume time
+                    Text(
+                        "${mins}:${"%02d".format(secs)} / ${totalMins} min",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = theme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Meta badges
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .background(theme.primary.copy(alpha = 0.15f), theme.shape)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                if (isFocused) "Resume" else info.vod.era,
+                                fontSize = 11.sp,
+                                fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isFocused) theme.primary else theme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        if (!isFocused) {
+                            info.vod.gameContent?.let {
+                                Box(
+                                    modifier = Modifier
+                                        .background(theme.surface, theme.shape)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(it, fontSize = 11.sp, color = theme.onSurface.copy(alpha = 0.5f))
+                                }
                             }
                         }
                     }
