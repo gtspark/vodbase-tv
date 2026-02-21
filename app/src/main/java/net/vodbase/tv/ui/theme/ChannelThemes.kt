@@ -1,8 +1,10 @@
 package net.vodbase.tv.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import net.vodbase.tv.data.model.Channel
 
 data class ChannelTheme(
@@ -12,8 +14,12 @@ data class ChannelTheme(
     val surface: Color,
     val onSurface: Color,
     val focusRing: Color,
-    val channelName: String
-)
+    val channelName: String,
+    val cornerRadius: Dp = 10.dp,
+    val glowColor: Color = Color.Transparent // colored shadow on focus
+) {
+    val shape: Shape get() = RoundedCornerShape(cornerRadius)
+}
 
 object ChannelThemes {
     val Jerma = ChannelTheme(
@@ -23,7 +29,9 @@ object ChannelThemes {
         surface = Color(0xFF1A1A2E),
         onSurface = Color.White,
         focusRing = Color(0xFF00FF41),
-        channelName = "Jerma985"
+        channelName = "Jerma985",
+        cornerRadius = 10.dp,
+        glowColor = Color(0xFF00FF41)
     )
 
     val Sips = ChannelTheme(
@@ -33,7 +41,9 @@ object ChannelThemes {
         surface = Color(0xFF0A1A2E),
         onSurface = Color.White,
         focusRing = Color(0xFF00D9FF),
-        channelName = "Sips"
+        channelName = "Sips",
+        cornerRadius = 10.dp,
+        glowColor = Color(0xFF00D9FF)
     )
 
     val NL = ChannelTheme(
@@ -43,7 +53,9 @@ object ChannelThemes {
         surface = Color(0xFF2A1F10),
         onSurface = Color.White,
         focusRing = Color(0xFFFF6B35),
-        channelName = "Northernlion"
+        channelName = "Northernlion",
+        cornerRadius = 10.dp,
+        glowColor = Color(0xFFFF6B35)
     )
 
     val Moon = ChannelTheme(
@@ -53,7 +65,9 @@ object ChannelThemes {
         surface = Color(0xFF1A1A1A),
         onSurface = Color.White,
         focusRing = Color(0xFFE8E8E8),
-        channelName = "MOONMOON"
+        channelName = "MOONMOON",
+        cornerRadius = 0.dp, // brutalist: sharp corners
+        glowColor = Color.Transparent // no colored glow, just hard borders
     )
 
     fun forChannel(channel: Channel): ChannelTheme = when (channel) {

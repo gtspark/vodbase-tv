@@ -1,17 +1,18 @@
 package net.vodbase.tv.ui.browse
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -37,16 +38,27 @@ fun VodCard(
         animationSpec = tween(durationMillis = 200),
         label = "vodBorderAlpha"
     )
+    val glowElevation by animateDpAsState(
+        targetValue = if (isFocused && theme.glowColor != Color.Transparent) 16.dp else 0.dp,
+        animationSpec = tween(durationMillis = 200),
+        label = "vodGlow"
+    )
 
     Box(
         modifier = modifier
             .width(200.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isFocused) theme.primary.copy(alpha = 0.08f) else theme.surface)
+            .shadow(
+                elevation = glowElevation,
+                shape = theme.shape,
+                ambientColor = theme.glowColor.copy(alpha = 0.5f),
+                spotColor = theme.glowColor.copy(alpha = 0.5f)
+            )
+            .clip(theme.shape)
+            .background(if (isFocused) theme.primary.copy(alpha = 0.06f) else theme.surface)
             .border(
                 width = if (isFocused) 2.dp else 0.dp,
                 color = theme.focusRing.copy(alpha = borderAlpha),
-                shape = RoundedCornerShape(6.dp)
+                shape = theme.shape
             )
             .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick() }
@@ -59,8 +71,7 @@ fun VodCard(
                     contentDescription = vod.title,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)),
+                        .aspectRatio(16f / 9f),
                     contentScale = ContentScale.Crop
                 )
 
@@ -71,7 +82,7 @@ fun VodCard(
                         .padding(4.dp)
                         .background(
                             Color.Black.copy(alpha = 0.85f),
-                            RoundedCornerShape(3.dp)
+                            theme.shape
                         )
                         .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
@@ -85,12 +96,12 @@ fun VodCard(
                             .align(Alignment.TopEnd)
                             .padding(4.dp)
                             .background(
-                                Color(0xFF1A5E1A).copy(alpha = 0.9f),
-                                RoundedCornerShape(3.dp)
+                                Color(0xFF43B581).copy(alpha = 0.9f),
+                                theme.shape
                             )
                             .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
-                        Text("Watched", fontSize = 9.sp, color = Color(0xFF90EE90))
+                        Text("Watched", fontSize = 9.sp, color = Color.White)
                     }
                 }
             }

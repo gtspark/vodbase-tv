@@ -1,18 +1,20 @@
 package net.vodbase.tv.ui.detail
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -84,7 +86,15 @@ fun DetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(theme.background)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        theme.primary.copy(alpha = 0.05f),
+                        theme.background
+                    ),
+                    radius = 800f
+                )
+            )
             .padding(horizontal = 40.dp, vertical = 24.dp)
     ) {
         if (vod == null) {
@@ -97,18 +107,18 @@ fun DetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Thumbnail - compact
+                // Thumbnail
                 AsyncImage(
                     model = vod.thumbnail,
                     contentDescription = vod.title,
                     modifier = Modifier
                         .weight(0.8f)
                         .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(theme.shape),
                     contentScale = ContentScale.Crop
                 )
 
-                // Metadata + buttons - more room
+                // Metadata + buttons
                 Column(
                     modifier = Modifier.weight(1.2f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -148,7 +158,7 @@ fun DetailScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Action buttons - vertical stack for reliable D-pad nav
+                    // Action buttons - vertical stack
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ActionButton(
                             text = "Play",
@@ -196,6 +206,11 @@ fun ActionButton(
         animationSpec = tween(durationMillis = 200),
         label = "btnBorder"
     )
+    val glowElevation by animateDpAsState(
+        targetValue = if (isFocused && theme.glowColor != Color.Transparent) 12.dp else 0.dp,
+        animationSpec = tween(durationMillis = 200),
+        label = "btnGlow"
+    )
 
     val bgColor = when {
         isFocused && isBright -> theme.primary
@@ -213,12 +228,18 @@ fun ActionButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
+            .shadow(
+                elevation = glowElevation,
+                shape = theme.shape,
+                ambientColor = theme.glowColor.copy(alpha = 0.4f),
+                spotColor = theme.glowColor.copy(alpha = 0.4f)
+            )
+            .clip(theme.shape)
             .background(bgColor)
             .border(
                 width = if (isFocused) 2.dp else 0.dp,
                 color = theme.focusRing.copy(alpha = borderAlpha),
-                shape = RoundedCornerShape(6.dp)
+                shape = theme.shape
             )
             .onFocusChanged { isFocused = it.isFocused }
             .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
@@ -238,7 +259,7 @@ fun ActionButton(
 fun MetaBadge(text: String, theme: ChannelTheme) {
     Box(
         modifier = Modifier
-            .background(theme.surface, RoundedCornerShape(4.dp))
+            .background(theme.surface, theme.shape)
             .padding(horizontal = 6.dp, vertical = 3.dp)
     ) {
         Text(text, fontSize = 11.sp, color = theme.onSurface.copy(alpha = 0.6f))

@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.font.FontWeight
@@ -93,7 +94,15 @@ fun BrowseScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(theme.background)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        theme.primary.copy(alpha = 0.04f),
+                        theme.background,
+                        theme.background
+                    )
+                )
+            )
             .onPreviewKeyEvent { event ->
                 if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
                 when (event.nativeKeyEvent.keyCode) {

@@ -1,5 +1,6 @@
 package net.vodbase.tv.ui.home
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -12,9 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,21 +37,22 @@ fun HomeScreen(onChannelSelected: (String) -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Logo
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "VOD",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color(0xFFEF4444)
+            // Logo with gradient
+            Text(
+                "VODBASE",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-2).sp,
+                style = TextStyle(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFFFF4444),
+                            Color(0xFFFF6666),
+                            Color.White
+                        )
+                    )
                 )
-                Text(
-                    "BASE",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
-                )
-            }
+            )
 
             // Channel grid - 2x2
             Column(
@@ -83,15 +87,26 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
         animationSpec = tween(durationMillis = 200),
         label = "borderAlpha"
     )
+    val glowElevation by animateDpAsState(
+        targetValue = if (isFocused && theme.glowColor != Color.Transparent) 20.dp else 0.dp,
+        animationSpec = tween(durationMillis = 200),
+        label = "glowElev"
+    )
 
     Box(
         modifier = modifier
             .height(120.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .shadow(
+                elevation = glowElevation,
+                shape = theme.shape,
+                ambientColor = theme.glowColor.copy(alpha = 0.6f),
+                spotColor = theme.glowColor.copy(alpha = 0.6f)
+            )
+            .clip(theme.shape)
             .background(
                 Brush.horizontalGradient(
                     colors = if (isFocused)
-                        listOf(theme.primary.copy(alpha = 0.15f), theme.surface, theme.background)
+                        listOf(theme.primary.copy(alpha = 0.12f), theme.surface, theme.background)
                     else
                         listOf(theme.surface, theme.background)
                 )
@@ -99,7 +114,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
             .border(
                 width = if (isFocused) 2.dp else 0.dp,
                 color = theme.focusRing.copy(alpha = borderAlpha),
-                shape = RoundedCornerShape(10.dp)
+                shape = theme.shape
             )
             .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick(channel) }
