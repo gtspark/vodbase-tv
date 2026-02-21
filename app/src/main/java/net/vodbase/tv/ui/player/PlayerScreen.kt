@@ -35,10 +35,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
+import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
@@ -127,20 +129,33 @@ class PlayerViewModel @Inject constructor(
                     .setSeekParameters(SeekParameters.CLOSEST_SYNC)
                     .build()
 
-                val dataSourceFactory = DefaultHttpDataSource.Factory()
+                val httpFactory = DefaultHttpDataSource.Factory()
                     .setConnectTimeoutMs(15_000)
                     .setReadTimeoutMs(15_000)
                     .setAllowCrossProtocolRedirects(true)
+                // DefaultDataSource handles file:// URIs (for DASH manifests) + delegates http to httpFactory
+                val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
                 val sourceType: String
-                if (stream.hlsUrl != null) {
-                    // HLS: segment-based = fast seeking, auto-adaptive quality
+                if (stream.videoDashManifest != null && stream.audioDashManifest != null) {
+                    // DASH: write manifests to temp files, use file:// URIs
+                    val videoManifestFile = java.io.File(context.cacheDir, "dash_video.mpd")
+                    val audioManifestFile = java.io.File(context.cacheDir, "dash_audio.mpd")
+                    videoManifestFile.writeText(stream.videoDashManifest)
+                    audioManifestFile.writeText(stream.audioDashManifest)
+
+                    val videoDashSource = DashMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(videoManifestFile)))
+                    val audioDashSource = DashMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(audioManifestFile)))
+                    exoPlayer.setMediaSource(MergingMediaSource(videoDashSource, audioDashSource))
+                    sourceType = "DASH+Merge"
+                } else if (stream.hlsUrl != null) {
                     val hlsSource = HlsMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.hlsUrl))
                     exoPlayer.setMediaSource(hlsSource)
                     sourceType = "HLS"
                 } else if (stream.isAdaptive && stream.audioUrl != null) {
-                    // Fallback: progressive adaptive (slow seeking)
                     val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.videoUrl))
                     val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
@@ -152,7 +167,7 @@ class PlayerViewModel @Inject constructor(
                     sourceType = "Progressive"
                 }
 
-                android.util.Log.i("VodPlayer", "Source: $sourceType | HLS=${stream.hlsUrl != null} | Res=${stream.resolution}")
+                android.util.Log.i("VodPlayer", "Source: $sourceType | Res=${stream.resolution}")
                 exoPlayer.prepare()
 
                 if (resumeSeconds > 0) {
@@ -415,7 +430,7 @@ fun PlayerScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = theme.primary)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Extracting stream...", color = Color.White, fontSize = 16.sp)
+                    Text("Loading tape...", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
                 }
             }
         }
