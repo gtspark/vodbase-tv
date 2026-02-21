@@ -1,26 +1,27 @@
 package net.vodbase.tv.ui.home
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import net.vodbase.tv.data.model.Channel
 import net.vodbase.tv.ui.theme.ChannelThemes
 
@@ -30,17 +31,17 @@ fun HomeScreen(onChannelSelected: (String) -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0A0A0F))
-            .padding(horizontal = 48.dp, vertical = 24.dp),
+            .padding(horizontal = 48.dp, vertical = 20.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Logo with gradient
             Text(
                 "VODBASE",
-                fontSize = 36.sp,
+                fontSize = 34.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = (-2).sp,
                 style = TextStyle(
@@ -56,18 +57,18 @@ fun HomeScreen(onChannelSelected: (String) -> Unit) {
 
             // Channel grid - 2x2
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.widthIn(max = 700.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.widthIn(max = 760.dp)
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     ChannelCard(Channel.JERMA, Modifier.weight(1f)) { onChannelSelected(it.id) }
                     ChannelCard(Channel.SIPS, Modifier.weight(1f)) { onChannelSelected(it.id) }
                 }
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     ChannelCard(Channel.NL, Modifier.weight(1f)) { onChannelSelected(it.id) }
@@ -87,52 +88,99 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
         animationSpec = tween(durationMillis = 200),
         label = "borderAlpha"
     )
-    val glowElevation by animateDpAsState(
-        targetValue = if (isFocused && theme.glowColor != Color.Transparent) 20.dp else 0.dp,
-        animationSpec = tween(durationMillis = 200),
-        label = "glowElev"
-    )
 
     Box(
         modifier = modifier
-            .height(120.dp)
-            .shadow(
-                elevation = glowElevation,
-                shape = theme.shape,
-                ambientColor = theme.glowColor.copy(alpha = 0.6f),
-                spotColor = theme.glowColor.copy(alpha = 0.6f)
-            )
+            .height(130.dp)
             .clip(theme.shape)
             .background(
                 Brush.horizontalGradient(
                     colors = if (isFocused)
-                        listOf(theme.primary.copy(alpha = 0.12f), theme.surface, theme.background)
+                        listOf(theme.primary.copy(alpha = 0.1f), theme.surface, theme.background)
                     else
                         listOf(theme.surface, theme.background)
                 )
             )
             .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = theme.focusRing.copy(alpha = borderAlpha),
+                width = if (isFocused) 2.dp else 1.dp,
+                color = if (isFocused) theme.focusRing.copy(alpha = borderAlpha)
+                       else theme.primary.copy(alpha = 0.15f),
                 shape = theme.shape
             )
             .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick(channel) }
-            .padding(20.dp),
-        contentAlignment = Alignment.CenterStart
+            .padding(16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                channel.displayName,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isFocused) theme.primary else theme.primary.copy(alpha = 0.7f)
-            )
-            Text(
-                channel.theaterName,
-                fontSize = 13.sp,
-                color = theme.onSurface.copy(alpha = if (isFocused) 0.6f else 0.3f)
-            )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Avatar with colored ring
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(56.dp)
+                    .border(
+                        width = 2.dp,
+                        color = if (isFocused) theme.primary else theme.primary.copy(alpha = 0.5f),
+                        shape = CircleShape
+                    )
+                    .padding(3.dp)
+            ) {
+                AsyncImage(
+                    model = channel.avatarUrl,
+                    contentDescription = channel.displayName,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            // Text content
+            Column(
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    channel.displayName,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isFocused) theme.primary else theme.primary.copy(alpha = 0.8f)
+                )
+
+                // Stats row
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "${channel.approxVods} VODs",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = theme.primary.copy(alpha = if (isFocused) 0.7f else 0.4f)
+                    )
+                    Text(
+                        "${channel.years} Years",
+                        fontSize = 11.sp,
+                        color = theme.onSurface.copy(alpha = 0.3f)
+                    )
+                }
+
+                Text(
+                    channel.tagline,
+                    fontSize = 11.sp,
+                    color = theme.onSurface.copy(alpha = if (isFocused) 0.5f else 0.25f),
+                    maxLines = 1
+                )
+
+                // Enter hint (visible on focus)
+                if (isFocused) {
+                    Text(
+                        "${channel.enterText} →",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = theme.primary.copy(alpha = 0.8f)
+                    )
+                }
+            }
         }
     }
 }

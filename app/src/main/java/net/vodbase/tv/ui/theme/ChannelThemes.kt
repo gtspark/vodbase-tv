@@ -15,8 +15,7 @@ data class ChannelTheme(
     val onSurface: Color,
     val focusRing: Color,
     val channelName: String,
-    val cornerRadius: Dp = 10.dp,
-    val glowColor: Color = Color.Transparent // colored shadow on focus
+    val cornerRadius: Dp = 10.dp
 ) {
     val shape: Shape get() = RoundedCornerShape(cornerRadius)
 }
@@ -30,8 +29,7 @@ object ChannelThemes {
         onSurface = Color.White,
         focusRing = Color(0xFF00FF41),
         channelName = "Jerma985",
-        cornerRadius = 10.dp,
-        glowColor = Color(0xFF00FF41)
+        cornerRadius = 10.dp
     )
 
     val Sips = ChannelTheme(
@@ -42,8 +40,7 @@ object ChannelThemes {
         onSurface = Color.White,
         focusRing = Color(0xFF00D9FF),
         channelName = "Sips",
-        cornerRadius = 10.dp,
-        glowColor = Color(0xFF00D9FF)
+        cornerRadius = 10.dp
     )
 
     val NL = ChannelTheme(
@@ -54,8 +51,7 @@ object ChannelThemes {
         onSurface = Color.White,
         focusRing = Color(0xFFFF6B35),
         channelName = "Northernlion",
-        cornerRadius = 10.dp,
-        glowColor = Color(0xFFFF6B35)
+        cornerRadius = 10.dp
     )
 
     val Moon = ChannelTheme(
@@ -66,8 +62,7 @@ object ChannelThemes {
         onSurface = Color.White,
         focusRing = Color(0xFFE8E8E8),
         channelName = "MOONMOON",
-        cornerRadius = 0.dp, // brutalist: sharp corners
-        glowColor = Color.Transparent // no colored glow, just hard borders
+        cornerRadius = 0.dp // brutalist: sharp corners
     )
 
     fun forChannel(channel: Channel): ChannelTheme = when (channel) {

@@ -1,6 +1,5 @@
 package net.vodbase.tv.ui.browse
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -12,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -38,21 +36,10 @@ fun VodCard(
         animationSpec = tween(durationMillis = 200),
         label = "vodBorderAlpha"
     )
-    val glowElevation by animateDpAsState(
-        targetValue = if (isFocused && theme.glowColor != Color.Transparent) 16.dp else 0.dp,
-        animationSpec = tween(durationMillis = 200),
-        label = "vodGlow"
-    )
 
     Box(
         modifier = modifier
             .width(200.dp)
-            .shadow(
-                elevation = glowElevation,
-                shape = theme.shape,
-                ambientColor = theme.glowColor.copy(alpha = 0.5f),
-                spotColor = theme.glowColor.copy(alpha = 0.5f)
-            )
             .clip(theme.shape)
             .background(if (isFocused) theme.primary.copy(alpha = 0.06f) else theme.surface)
             .border(

@@ -1,6 +1,5 @@
 package net.vodbase.tv.ui.detail
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -12,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -146,7 +144,6 @@ fun DetailScreen(
                         color = theme.onSurface.copy(alpha = 0.4f)
                     )
 
-                    // Series info
                     vod.series?.let { series ->
                         Text(
                             "${series.name} - Part ${series.part}",
@@ -206,11 +203,6 @@ fun ActionButton(
         animationSpec = tween(durationMillis = 200),
         label = "btnBorder"
     )
-    val glowElevation by animateDpAsState(
-        targetValue = if (isFocused && theme.glowColor != Color.Transparent) 12.dp else 0.dp,
-        animationSpec = tween(durationMillis = 200),
-        label = "btnGlow"
-    )
 
     val bgColor = when {
         isFocused && isBright -> theme.primary
@@ -228,12 +220,6 @@ fun ActionButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = glowElevation,
-                shape = theme.shape,
-                ambientColor = theme.glowColor.copy(alpha = 0.4f),
-                spotColor = theme.glowColor.copy(alpha = 0.4f)
-            )
             .clip(theme.shape)
             .background(bgColor)
             .border(
