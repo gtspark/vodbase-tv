@@ -5,7 +5,6 @@ import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.StreamInfo
-import org.schabi.newpipe.extractor.stream.VideoStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,7 +26,23 @@ class StreamExtractor @Inject constructor() {
         val url = "https://www.youtube.com/watch?v=$youtubeId"
         val info = StreamInfo.getInfo(ServiceList.YouTube, url)
 
-        // Prefer progressive (video+audio) streams, fallback to adaptive
+        // Prefer adaptive (video-only + separate audio) for highest resolution (1080p+)
+        val videoOnly = info.videoOnlyStreams
+            .sortedByDescending { it.resolution?.replace("p", "")?.toIntOrNull() ?: 0 }
+        val audioOnly = info.audioStreams
+            .sortedByDescending { it.averageBitrate }
+
+        if (videoOnly.isNotEmpty() && audioOnly.isNotEmpty()) {
+            val best = videoOnly.first()
+            return@withContext ExtractedStream(
+                videoUrl = best.content,
+                audioUrl = audioOnly.first().content,
+                resolution = best.resolution ?: "unknown",
+                isAdaptive = true
+            )
+        }
+
+        // Fallback: progressive (combined video+audio, usually max 720p)
         val progressiveStreams = info.videoStreams
             .filter { !it.isVideoOnly }
             .sortedByDescending { it.resolution?.replace("p", "")?.toIntOrNull() ?: 0 }
@@ -39,21 +54,6 @@ class StreamExtractor @Inject constructor() {
                 audioUrl = null,
                 resolution = best.resolution ?: "unknown",
                 isAdaptive = false
-            )
-        }
-
-        // Adaptive: separate video + audio
-        val videoOnly = info.videoOnlyStreams
-            .sortedByDescending { it.resolution?.replace("p", "")?.toIntOrNull() ?: 0 }
-        val audioOnly = info.audioStreams
-            .sortedByDescending { it.averageBitrate }
-
-        if (videoOnly.isNotEmpty()) {
-            return@withContext ExtractedStream(
-                videoUrl = videoOnly.first().content,
-                audioUrl = audioOnly.firstOrNull()?.content,
-                resolution = videoOnly.first().resolution ?: "unknown",
-                isAdaptive = true
             )
         }
 
