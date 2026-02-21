@@ -38,6 +38,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
@@ -129,7 +130,13 @@ class PlayerViewModel @Inject constructor(
                     .setReadTimeoutMs(15_000)
                     .setAllowCrossProtocolRedirects(true)
 
-                if (stream.isAdaptive && stream.audioUrl != null) {
+                if (stream.hlsUrl != null) {
+                    // HLS: segment-based = fast seeking, auto-adaptive quality
+                    val hlsSource = HlsMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(stream.hlsUrl))
+                    exoPlayer.setMediaSource(hlsSource)
+                } else if (stream.isAdaptive && stream.audioUrl != null) {
+                    // Fallback: progressive adaptive (slow seeking)
                     val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(stream.videoUrl))
                     val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)

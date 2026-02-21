@@ -91,30 +91,23 @@ class BrowseViewModel @Inject constructor(
                 // Recently Added
                 rowList.add(VodRow("Recently Added", vods.take(20)))
 
-                // Series rows - group VODs by series name, show top 10 series with 2+ parts
+                // Series rows - group by series name (already cleaned by autoDetectSeries)
                 val seriesGroups = vods
                     .filter { it.series != null }
-                    .groupBy { it.series!!.name.trimEnd('(', ' ') } // fix trailing "(" from API
-                    .filter { it.value.size >= 2 }
+                    .groupBy { it.series!!.name }
+                    .filter { it.value.size >= 3 }
+                    .mapValues { (_, v) -> v.sortedBy { it.series!!.part } }
                     .entries
                     .sortedByDescending { it.value.size }
                     .take(10)
 
-                for ((seriesName, taggedParts) in seriesGroups) {
-                    // Find Part 1: VOD whose title matches the series base name (no "(Part N)")
-                    val part1 = vods.find { v ->
-                        v.series == null && v.title.trim().equals(seriesName.trim(), ignoreCase = true)
-                    }
-                    // Combine Part 1 (if found) + tagged parts, sorted by part number
-                    val allParts = buildList {
-                        part1?.let { add(it) }
-                        addAll(taggedParts.sortedBy { it.series!!.part })
-                    }
-
+                for ((seriesName, seriesVods) in seriesGroups) {
+                    // Clean display name: strip "Jerma Streams -", "Sips Plays", etc.
                     val displayName = seriesName
-                        .replace(Regex("^\\w+ (Streams|Re-stream|Highlights)\\s*-\\s*"), "")
+                        .replace(Regex("^\\w+\\s+(Streams|Re-stream|Highlights)\\s*-\\s*"), "")
+                        .replace(Regex("^\\w+\\s+Plays\\s+"), "")
                         .ifEmpty { seriesName }
-                    rowList.add(VodRow("$displayName (${allParts.size} parts)", allParts))
+                    rowList.add(VodRow("$displayName (${seriesVods.size} parts)", seriesVods))
                 }
 
                 // Per era

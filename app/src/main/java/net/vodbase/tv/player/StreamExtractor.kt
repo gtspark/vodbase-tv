@@ -11,6 +11,7 @@ import javax.inject.Singleton
 data class ExtractedStream(
     val videoUrl: String,
     val audioUrl: String?,
+    val hlsUrl: String?,
     val resolution: String,
     val isAdaptive: Boolean
 )
@@ -26,7 +27,10 @@ class StreamExtractor @Inject constructor() {
         val url = "https://www.youtube.com/watch?v=$youtubeId"
         val info = StreamInfo.getInfo(ServiceList.YouTube, url)
 
-        // Prefer adaptive (video-only + separate audio) for highest resolution (1080p+)
+        // Prefer HLS (segment-based = fast seeking)
+        val hlsUrl = info.hlsUrl?.takeIf { it.isNotBlank() }
+
+        // Also extract adaptive streams as fallback
         val videoOnly = info.videoOnlyStreams
             .sortedByDescending { it.resolution?.replace("p", "")?.toIntOrNull() ?: 0 }
         val audioOnly = info.audioStreams
@@ -37,6 +41,7 @@ class StreamExtractor @Inject constructor() {
             return@withContext ExtractedStream(
                 videoUrl = best.content,
                 audioUrl = audioOnly.first().content,
+                hlsUrl = hlsUrl,
                 resolution = best.resolution ?: "unknown",
                 isAdaptive = true
             )
@@ -52,7 +57,19 @@ class StreamExtractor @Inject constructor() {
             return@withContext ExtractedStream(
                 videoUrl = best.content,
                 audioUrl = null,
+                hlsUrl = hlsUrl,
                 resolution = best.resolution ?: "unknown",
+                isAdaptive = false
+            )
+        }
+
+        // Last resort: HLS only
+        if (hlsUrl != null) {
+            return@withContext ExtractedStream(
+                videoUrl = hlsUrl,
+                audioUrl = null,
+                hlsUrl = hlsUrl,
+                resolution = "auto",
                 isAdaptive = false
             )
         }
