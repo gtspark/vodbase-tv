@@ -181,10 +181,8 @@ fun VodDetailCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Action buttons slot
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                actions()
-            }
+            // Action buttons slot (no wrapper Column - avoids double-press focus trap)
+            actions()
         }
     }
 }

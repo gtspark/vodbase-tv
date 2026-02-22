@@ -79,6 +79,25 @@ class VodRepository @Inject constructor(
             ?.sortedBy { it.series?.part ?: 0 } ?: emptyList()
     }
 
+    /**
+     * Finds Part 1 of a series. First checks tagged VODs (series.part == 1).
+     * If not found, searches for untagged VODs whose title matches the series name
+     * (handles cases like "NL Plays Game" being Part 1 of "NL Plays Game Part X" series).
+     */
+    fun getSeriesPart1(streamer: String, seriesName: String): Vod? {
+        val tagged = getSeriesVods(streamer, seriesName)
+        val taggedPart1 = tagged.firstOrNull { it.series?.part == 1 }
+        if (taggedPart1 != null) return taggedPart1
+
+        // Look for untagged Part 1 candidate (title matches series name)
+        return cache[streamer]?.firstOrNull { v ->
+            v.series == null && (
+                v.title.trim().equals(seriesName.trim(), ignoreCase = true) ||
+                v.title.trim().startsWith(seriesName.trim(), ignoreCase = true)
+            )
+        }
+    }
+
     companion object {
         /**
          * Port of web's autoDetectSeries() from auto-detect-series.js.

@@ -60,7 +60,7 @@ class ShuffleViewModel @Inject constructor(
 
     fun getSeriesPart1(channelId: String): Vod? {
         val series = currentVod?.series ?: return null
-        return vodRepository.getSeriesVods(channelId, series.name).firstOrNull()
+        return vodRepository.getSeriesPart1(channelId, series.name)
     }
 }
 
