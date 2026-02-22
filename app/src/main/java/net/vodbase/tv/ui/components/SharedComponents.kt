@@ -173,7 +173,7 @@ fun VodDetailCard(
                 vod.gameContent?.let { MetaBadge(it, theme) }
             }
 
-            vod.date?.let { date ->
+            vod.formattedDate?.let { date ->
                 Text(
                     date,
                     fontSize = 12.sp,
