@@ -6,9 +6,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +22,7 @@ import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.data.repository.ProgressRepository
 import net.vodbase.tv.data.repository.VodRepository
 import net.vodbase.tv.ui.components.ActionButton
+import net.vodbase.tv.ui.components.DetailSkeletonScreen
 import net.vodbase.tv.ui.components.VodDetailCard
 import net.vodbase.tv.ui.theme.ChannelThemes
 import javax.inject.Inject
@@ -83,28 +88,40 @@ fun DetailScreen(
 
     val vod = viewModel.vod
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        theme.primary.copy(alpha = 0.05f),
-                        theme.background
-                    ),
-                    radius = 800f
-                )
+    Box(modifier = Modifier.fillMaxSize().background(theme.background)) {
+        // Blurred thumbnail background
+        if (vod != null) {
+            AsyncImage(
+                model = vod.thumbnail,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize().blur(25.dp).alpha(0.35f),
+                contentScale = ContentScale.Crop
             )
-            .padding(horizontal = 40.dp, vertical = 24.dp)
-    ) {
+        }
+
+        // Gradient overlay on top of blur
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            theme.primary.copy(alpha = 0.05f),
+                            theme.background.copy(alpha = 0.85f)
+                        ),
+                        radius = 800f
+                    )
+                )
+        )
+
+        // Content
+        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp)) {
         if (viewModel.error != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(viewModel.error ?: "", color = theme.error, fontSize = 16.sp)
             }
         } else if (vod == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Loading...", color = theme.onSurface.copy(alpha = 0.5f), fontSize = 16.sp)
-            }
+            DetailSkeletonScreen(theme)
         } else {
             VodDetailCard(vod = vod, theme = theme) {
                 // If resume position exists, make Resume the primary button
@@ -146,6 +163,7 @@ fun DetailScreen(
                     enabled = !viewModel.isWatched
                 )
             }
+        }
         }
     }
 }

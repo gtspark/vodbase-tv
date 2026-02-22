@@ -17,9 +17,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.data.repository.AuthRepository
 import net.vodbase.tv.ui.auth.AuthScreen
 import net.vodbase.tv.ui.browse.BrowseScreen
@@ -81,7 +85,14 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                 ) {
-                    NavHost(navController = navController, startDestination = startDest) {
+                    NavHost(
+                        navController = navController,
+                        startDestination = startDest,
+                        enterTransition = { fadeIn(tween(AnimationConstants.NAV_TRANSITION_MS)) },
+                        exitTransition = { fadeOut(tween(AnimationConstants.NAV_TRANSITION_MS)) },
+                        popEnterTransition = { fadeIn(tween(AnimationConstants.NAV_TRANSITION_MS)) },
+                        popExitTransition = { fadeOut(tween(AnimationConstants.NAV_TRANSITION_MS)) }
+                    ) {
                         composable("auth") {
                             AuthScreen(
                                 onAuthenticated = {
@@ -154,7 +165,9 @@ class MainActivity : ComponentActivity() {
                                 navArgument("channel") { type = NavType.StringType },
                                 navArgument("vodId") { type = NavType.StringType },
                                 navArgument("resumeMs") { type = NavType.LongType; defaultValue = 0L }
-                            )
+                            ),
+                            enterTransition = { fadeIn(tween(AnimationConstants.PLAYER_TRANSITION_MS)) },
+                            exitTransition = { fadeOut(tween(AnimationConstants.PLAYER_TRANSITION_MS)) }
                         ) { backStackEntry ->
                             val channel = backStackEntry.arguments?.getString("channel") ?: "jerma"
                             val vodId = backStackEntry.arguments?.getString("vodId") ?: ""

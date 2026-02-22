@@ -1,5 +1,7 @@
 package net.vodbase.tv.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -14,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -24,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import net.vodbase.tv.data.model.Vod
+import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
 
 /**
@@ -51,22 +55,37 @@ fun ActionButton(
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
     }
 
-    val bgColor = when {
-        isFocused && isBright -> theme.primary
-        isFocused -> theme.primary.copy(alpha = 0.25f)
-        isBright -> theme.primary.copy(alpha = 0.8f)
-        else -> theme.surface
-    }
-    val textColor = when {
-        isFocused && isBright -> theme.background
-        isFocused -> Color.White
-        isBright -> theme.background
-        else -> theme.onSurface.copy(alpha = 0.7f)
-    }
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) AnimationConstants.BUTTON_SCALE_FOCUSED else 1.0f,
+        animationSpec = tween(durationMillis = AnimationConstants.FOCUS_DURATION_MS, easing = FastOutSlowInEasing),
+        label = "btnScale"
+    )
+
+    val bgColor by animateColorAsState(
+        targetValue = when {
+            isFocused && isBright -> theme.primary
+            isFocused -> theme.primary.copy(alpha = 0.25f)
+            isBright -> theme.primary.copy(alpha = 0.8f)
+            else -> theme.surface
+        },
+        animationSpec = tween(durationMillis = AnimationConstants.COLOR_DURATION_MS),
+        label = "btnBg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = when {
+            isFocused && isBright -> theme.background
+            isFocused -> Color.White
+            isBright -> theme.background
+            else -> theme.onSurface.copy(alpha = 0.7f)
+        },
+        animationSpec = tween(durationMillis = AnimationConstants.COLOR_DURATION_MS),
+        label = "btnText"
+    )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(theme.shape)
             .background(bgColor)
             .border(

@@ -1,6 +1,8 @@
 package net.vodbase.tv.ui.browse
 
 import android.view.KeyEvent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -10,8 +12,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import net.vodbase.tv.ui.components.BrowseSkeletonScreen
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +41,7 @@ import net.vodbase.tv.data.model.Channel
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.data.repository.ProgressRepository
 import net.vodbase.tv.data.repository.VodRepository
+import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
 import net.vodbase.tv.ui.theme.ChannelThemes
 import javax.inject.Inject
@@ -189,9 +193,7 @@ fun BrowseScreen(
             }
     ) {
         if (viewModel.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = theme.primary)
-            }
+            BrowseSkeletonScreen(theme)
         } else if (viewModel.error != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -314,8 +316,18 @@ fun ContinueWatchingHero(
     var isFocused by remember { mutableStateOf(false) }
     val borderAlpha by animateFloatAsState(
         targetValue = if (isFocused) 1f else 0f,
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = tween(durationMillis = AnimationConstants.FOCUS_DURATION_MS),
         label = "heroBorder"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) AnimationConstants.HERO_SCALE_FOCUSED else AnimationConstants.CARD_SCALE_UNFOCUSED,
+        animationSpec = tween(durationMillis = AnimationConstants.FOCUS_DURATION_MS, easing = AnimationConstants.FOCUS_EASING),
+        label = "heroScale"
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (isFocused) Color.White else theme.onSurface,
+        animationSpec = tween(durationMillis = AnimationConstants.COLOR_DURATION_MS),
+        label = "heroTitleColor"
     )
 
     val progressFraction = if (info.duration > 0) (info.currentTime / info.duration).toFloat().coerceIn(0f, 1f) else 0f
@@ -336,6 +348,7 @@ fun ContinueWatchingHero(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(160.dp)
+                .graphicsLayer { scaleX = scale; scaleY = scale }
                 .clip(theme.shape)
                 .background(theme.surface)
                 .border(
@@ -386,7 +399,7 @@ fun ContinueWatchingHero(
                         info.vod.title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isFocused) Color.White else theme.onSurface,
+                        color = titleColor,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = 19.sp
@@ -406,17 +419,23 @@ fun ContinueWatchingHero(
 
                     // Meta badges
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .background(theme.primary.copy(alpha = 0.15f), theme.shape)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                if (isFocused) "Resume" else info.vod.era,
-                                fontSize = 11.sp,
-                                fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isFocused) theme.primary else theme.onSurface.copy(alpha = 0.6f)
-                            )
+                        Crossfade(
+                            targetState = isFocused,
+                            animationSpec = tween(durationMillis = AnimationConstants.COLOR_DURATION_MS),
+                            label = "heroBadgeCrossfade"
+                        ) { focused ->
+                            Box(
+                                modifier = Modifier
+                                    .background(theme.primary.copy(alpha = 0.15f), theme.shape)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    if (focused) "Resume" else info.vod.era,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (focused) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (focused) theme.primary else theme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
                         }
                         if (!isFocused) {
                             info.vod.gameContent?.let {

@@ -1,5 +1,7 @@
 package net.vodbase.tv.ui.home
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -16,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import net.vodbase.tv.data.model.Channel
+import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelThemes
 
 @Composable
@@ -83,15 +87,31 @@ fun HomeScreen(onChannelSelected: (String) -> Unit) {
 fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Channel) -> Unit) {
     val theme = ChannelThemes.forChannel(channel)
     var isFocused by remember { mutableStateOf(false) }
-    val borderAlpha by animateFloatAsState(
-        targetValue = if (isFocused) 1f else 0f,
-        animationSpec = tween(durationMillis = 200),
-        label = "borderAlpha"
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) AnimationConstants.CHANNEL_SCALE_FOCUSED else 1f,
+        animationSpec = tween(AnimationConstants.FOCUS_DURATION_MS, easing = AnimationConstants.FOCUS_EASING),
+        label = "channelScale"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) theme.focusRing else theme.primary.copy(alpha = 0.15f),
+        animationSpec = tween(AnimationConstants.COLOR_DURATION_MS),
+        label = "channelBorder"
+    )
+    val avatarRingColor by animateColorAsState(
+        targetValue = if (isFocused) theme.primary else theme.primary.copy(alpha = 0.5f),
+        animationSpec = tween(AnimationConstants.COLOR_DURATION_MS),
+        label = "avatarRing"
+    )
+    val nameColor by animateColorAsState(
+        targetValue = if (isFocused) theme.primary else theme.primary.copy(alpha = 0.8f),
+        animationSpec = tween(AnimationConstants.COLOR_DURATION_MS),
+        label = "nameColor"
     )
 
     Box(
         modifier = modifier
             .height(170.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(theme.shape)
             .background(
                 Brush.horizontalGradient(
@@ -103,8 +123,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
             )
             .border(
                 width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) theme.focusRing.copy(alpha = borderAlpha)
-                       else theme.primary.copy(alpha = 0.15f),
+                color = borderColor,
                 shape = theme.shape
             )
             .onFocusChanged { isFocused = it.isFocused }
@@ -120,11 +139,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(72.dp)
-                    .border(
-                        width = 2.dp,
-                        color = if (isFocused) theme.primary else theme.primary.copy(alpha = 0.5f),
-                        shape = CircleShape
-                    )
+                    .border(2.dp, avatarRingColor, CircleShape)
                     .padding(3.dp)
             ) {
                 AsyncImage(
@@ -146,7 +161,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
                     channel.displayName,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isFocused) theme.primary else theme.primary.copy(alpha = 0.8f)
+                    color = nameColor
                 )
 
                 // Stats row
@@ -171,14 +186,18 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
                     maxLines = 1
                 )
 
-                // Enter hint (visible on focus)
-                if (isFocused) {
-                    Text(
-                        "${channel.enterText} →",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = theme.primary.copy(alpha = 0.8f)
-                    )
+                // Enter hint (crossfades in on focus)
+                Crossfade(targetState = isFocused, label = "enterHint") { focused ->
+                    if (focused) {
+                        Text(
+                            "${channel.enterText} →",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = theme.primary.copy(alpha = 0.8f)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
             }
         }

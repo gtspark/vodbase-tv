@@ -9,10 +9,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,6 +26,7 @@ import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.data.repository.ProgressRepository
 import net.vodbase.tv.data.repository.VodRepository
 import net.vodbase.tv.ui.components.ActionButton
+import net.vodbase.tv.ui.components.DetailSkeletonScreen
 import net.vodbase.tv.ui.components.VodDetailCard
 import net.vodbase.tv.ui.theme.ChannelThemes
 import javax.inject.Inject
@@ -80,15 +85,7 @@ fun ShuffleScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        theme.primary.copy(alpha = 0.05f),
-                        theme.background
-                    ),
-                    radius = 800f
-                )
-            )
+            .background(theme.background)
             .onPreviewKeyEvent { event ->
                 if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
                     event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_BACK
@@ -99,21 +96,42 @@ fun ShuffleScreen(
                     false
                 }
             }
-            .padding(horizontal = 40.dp, vertical = 24.dp)
     ) {
         Crossfade(
             targetState = viewModel.currentVod,
             animationSpec = tween(durationMillis = 350),
             label = "shuffleCrossfade"
         ) { vod ->
-            if (vod == null) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        "Finding something good...",
-                        color = theme.onSurface.copy(alpha = 0.5f),
-                        fontSize = 16.sp
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Blurred thumbnail background (crossfades with VOD changes)
+                if (vod != null) {
+                    AsyncImage(
+                        model = vod.thumbnail,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().blur(25.dp).alpha(0.35f),
+                        contentScale = ContentScale.Crop
                     )
                 }
+
+                // Gradient overlay on top of blur
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    theme.primary.copy(alpha = 0.05f),
+                                    theme.background.copy(alpha = 0.85f)
+                                ),
+                                radius = 800f
+                            )
+                        )
+                )
+
+                // Content
+                Box(modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp)) {
+            if (vod == null) {
+                DetailSkeletonScreen(theme)
             } else {
                 VodDetailCard(vod = vod, theme = theme, label = "Shuffle Pick") {
                     ActionButton(
@@ -143,6 +161,8 @@ fun ShuffleScreen(
                             theme = theme
                         )
                     }
+                }
+            }
                 }
             }
         }
