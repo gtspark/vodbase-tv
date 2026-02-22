@@ -107,10 +107,10 @@ class VodRepository @Inject constructor(
         private data class PatternDef(val regex: Regex, val type: String)
 
         private val seriesPatterns = listOf(
-            // Sips: "Sips Plays Game (date) - #X - Title"
-            PatternDef("""^.*?Plays\s+(.+?)\s+\([^)]+\)\s+-\s+#(\d+)\s+-\s+.+$""".toRegex(RegexOption.IGNORE_CASE), "sips"),
-            // Sips: "Sips Plays Game (date) - #X"
-            PatternDef("""^.*?Plays\s+(.+?)\s+\([^)]+\)\s+-\s+#(\d+)(?:\s+.*)?$""".toRegex(RegexOption.IGNORE_CASE), "sips"),
+            // Sips: "Sips Plays Game (date) [- ]#X - Title"
+            PatternDef("""^.*?Plays\s+(.+?)\s+\([^)]+\)\s*-?\s*#(\d+)\s+-\s+.+$""".toRegex(RegexOption.IGNORE_CASE), "sips"),
+            // Sips: "Sips Plays Game (date) [- ]#X"
+            PatternDef("""^.*?Plays\s+(.+?)\s+\([^)]+\)\s*-?\s*#(\d+)(?:\s+.*)?$""".toRegex(RegexOption.IGNORE_CASE), "sips"),
             // Jerma: "Series Name (Part X)"
             PatternDef("""^(.+?)\s+\(Part\s+(\d+)\)(?:\s+.*)?$""".toRegex(RegexOption.IGNORE_CASE), "part"),
             // "Game Name - Subtitle Part X" (with optional trailing text)
@@ -138,6 +138,13 @@ class VodRepository @Inject constructor(
 
         fun autoDetectSeries(vods: List<Vod>): List<Vod> {
             return vods.map { vod ->
+                // If API provided series data, just strip dates from the name for consistent grouping
+                if (vod.series != null) {
+                    val clean = stripDates(vod.series.name)
+                    return@map if (clean != vod.series.name && clean.isNotEmpty()) {
+                        vod.copy(series = vod.series.copy(name = clean))
+                    } else vod
+                }
                 for (pattern in seriesPatterns) {
                     val match = pattern.regex.find(vod.title) ?: continue
 

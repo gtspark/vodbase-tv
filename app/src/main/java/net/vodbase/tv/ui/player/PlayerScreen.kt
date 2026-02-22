@@ -386,8 +386,13 @@ class PlayerViewModel @Inject constructor(
         val series = currentVod.series
         if (series != null) {
             val seriesVods = vodRepository.getSeriesVods(ch, series.name)
+            android.util.Log.i("VodPlayer", "Series lookup: '${series.name}' part=${series.part}, found ${seriesVods.size} vods in series")
             val nextPart = seriesVods.find { it.series?.part == series.part + 1 }
-            if (nextPart != null) return nextPart
+            if (nextPart != null) {
+                android.util.Log.i("VodPlayer", "Next in series: '${nextPart.title}' (part ${nextPart.series?.part})")
+                return nextPart
+            }
+            android.util.Log.i("VodPlayer", "No part ${series.part + 1} found, falling back to random")
         }
 
         val allVods = vodRepository.getVods(ch)
