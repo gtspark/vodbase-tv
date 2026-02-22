@@ -110,10 +110,13 @@ fun DetailScreen(
                 // If resume position exists, make Resume the primary button
                 val hasResume = viewModel.resumeTime > 30
                 if (hasResume) {
-                    val mins = (viewModel.resumeTime / 60).toInt()
-                    val secs = (viewModel.resumeTime % 60).toInt()
+                    val totalSecs = viewModel.resumeTime.toInt()
+                    val hrs = totalSecs / 3600
+                    val mins = (totalSecs % 3600) / 60
+                    val secs = totalSecs % 60
+                    val timestamp = if (hrs > 0) "%d:%02d:%02d".format(hrs, mins, secs) else "%d:%02d".format(mins, secs)
                     ActionButton(
-                        text = "Resume from ${mins}:${"%02d".format(secs)}",
+                        text = "Resume from $timestamp",
                         onClick = { onPlay((viewModel.resumeTime * 1000).toLong()) },
                         isBright = true,
                         theme = theme,
