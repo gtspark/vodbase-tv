@@ -1,5 +1,8 @@
 package net.vodbase.tv.data.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class Vod(
     val id: String = "",
     val title: String = "",
@@ -44,6 +47,7 @@ data class Vod(
     }
 }
 
+@Immutable
 data class SeriesInfo(
     val name: String,
     val part: Int

@@ -6,6 +6,7 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeProgressiveDashManifestCreator
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import net.vodbase.tv.data.model.Chapter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,7 +17,8 @@ data class ExtractedStream(
     val videoDashManifest: String?,
     val audioDashManifest: String?,
     val resolution: String,
-    val isAdaptive: Boolean
+    val isAdaptive: Boolean,
+    val chapters: List<Chapter> = emptyList()
 )
 
 @Singleton
@@ -29,6 +31,21 @@ class StreamExtractor @Inject constructor() {
     suspend fun extractStream(youtubeId: String): ExtractedStream = withContext(Dispatchers.IO) {
         val url = "https://www.youtube.com/watch?v=$youtubeId"
         val info = StreamInfo.getInfo(ServiceList.YouTube, url)
+
+        // Extract chapters from stream segments
+        val chapters = try {
+            info.streamSegments.map { seg ->
+                Chapter(
+                    title = seg.title,
+                    startTimeMs = seg.startTimeSeconds.toLong() * 1000L,
+                    previewUrl = seg.previewUrl
+                )
+            }
+        } catch (_: Exception) { emptyList() }
+
+        if (chapters.isNotEmpty()) {
+            android.util.Log.i("VodPlayer", "Found ${chapters.size} chapters: ${chapters.joinToString { "'${it.title}' @${it.startTimeMs/1000}s" }}")
+        }
 
         val hlsUrl = info.hlsUrl?.takeIf { it.isNotBlank() }
 
@@ -75,7 +92,8 @@ class StreamExtractor @Inject constructor() {
                 videoDashManifest = videoDash,
                 audioDashManifest = audioDash,
                 resolution = bestVideo.resolution ?: "unknown",
-                isAdaptive = true
+                isAdaptive = true,
+                chapters = chapters
             )
         }
 
@@ -92,7 +110,8 @@ class StreamExtractor @Inject constructor() {
                 videoDashManifest = null,
                 audioDashManifest = null,
                 resolution = best.resolution ?: "unknown",
-                isAdaptive = false
+                isAdaptive = false,
+                chapters = chapters
             )
         }
 
@@ -104,7 +123,8 @@ class StreamExtractor @Inject constructor() {
                 videoDashManifest = null,
                 audioDashManifest = null,
                 resolution = "auto",
-                isAdaptive = false
+                isAdaptive = false,
+                chapters = chapters
             )
         }
 

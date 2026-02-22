@@ -5,8 +5,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.Stable
 import net.vodbase.tv.data.model.Channel
 
+@Stable
 data class ChannelTheme(
     val primary: Color,
     val secondary: Color,

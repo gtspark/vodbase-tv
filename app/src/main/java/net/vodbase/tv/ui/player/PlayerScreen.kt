@@ -3,16 +3,18 @@ package net.vodbase.tv.ui.player
 import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.compose.animation.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.focusable
@@ -53,6 +55,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import net.vodbase.tv.data.model.Chapter
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.data.repository.ProgressRepository
 import net.vodbase.tv.data.repository.VodRepository
@@ -83,6 +86,8 @@ class PlayerViewModel @Inject constructor(
         private set
     var pendingSeekMs by mutableStateOf<Long?>(null)
         private set
+    var chapters by mutableStateOf<List<Chapter>>(emptyList())
+        private set
     // Auto-advance state
     var videoEnded by mutableStateOf(false)
     var upNextVod by mutableStateOf<Vod?>(null)
@@ -104,6 +109,8 @@ class PlayerViewModel @Inject constructor(
     private var consecutiveSeeks = 0
     private var lastSeekDirection = 0
     private var lastSeekTime = 0L
+    var lastLeftTapTime = 0L
+    var lastRightTapTime = 0L
     private var channelId: String? = null
     private var currentVodId: String? = null
     private var hasMarkedWatched = false
@@ -143,6 +150,7 @@ class PlayerViewModel @Inject constructor(
                 vod = foundVod
 
                 val stream = streamExtractor.extractStream(foundVod.youtubeId)
+                chapters = stream.chapters
 
                 val loadControl = DefaultLoadControl.Builder()
                     .setBufferDurationsMs(15_000, 60_000, 1_000, 2_000)
@@ -334,6 +342,32 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    val currentChapter: Chapter? get() {
+        val pos = pendingSeekMs ?: currentPositionMs
+        return chapters.lastOrNull { it.startTimeMs <= pos }
+    }
+
+    fun seekToNextChapter(player: ExoPlayer?) {
+        player ?: return
+        if (chapters.isEmpty()) return
+        val pos = player.currentPosition
+        val next = chapters.firstOrNull { it.startTimeMs > pos + 1000 } ?: return
+        player.seekTo(next.startTimeMs)
+        showOverlayBriefly()
+        android.util.Log.i("VodPlayer", "Chapter skip → '${next.title}' @${next.startTimeMs/1000}s")
+    }
+
+    fun seekToPrevChapter(player: ExoPlayer?) {
+        player ?: return
+        if (chapters.isEmpty()) return
+        val pos = player.currentPosition
+        // If more than 3s into current chapter, go to its start; otherwise go to previous
+        val prev = chapters.lastOrNull { it.startTimeMs < pos - 3000 } ?: chapters.first()
+        player.seekTo(prev.startTimeMs)
+        showOverlayBriefly()
+        android.util.Log.i("VodPlayer", "Chapter skip ← '${prev.title}' @${prev.startTimeMs/1000}s")
+    }
+
     fun togglePlayPause(player: ExoPlayer?) {
         player?.let {
             if (it.isPlaying) it.pause() else it.play()
@@ -511,10 +545,26 @@ fun PlayerScreen(
                         }
                         true
                     }
-                    KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND ->
-                        { viewModel.seekBy(exoPlayer, -1); true }
-                    KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD ->
-                        { viewModel.seekBy(exoPlayer, 1); true }
+                    KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                        val now = System.currentTimeMillis()
+                        if (viewModel.chapters.isNotEmpty() && now - viewModel.lastLeftTapTime < 400) {
+                            viewModel.seekToPrevChapter(exoPlayer)
+                        } else {
+                            viewModel.seekBy(exoPlayer, -1)
+                        }
+                        viewModel.lastLeftTapTime = now
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                        val now = System.currentTimeMillis()
+                        if (viewModel.chapters.isNotEmpty() && now - viewModel.lastRightTapTime < 400) {
+                            viewModel.seekToNextChapter(exoPlayer)
+                        } else {
+                            viewModel.seekBy(exoPlayer, 1)
+                        }
+                        viewModel.lastRightTapTime = now
+                        true
+                    }
                     KeyEvent.KEYCODE_BACK -> {
                         if (viewModel.upNextVod != null) {
                             viewModel.cancelUpNext()
@@ -578,20 +628,43 @@ fun PlayerScreen(
             }
         }
 
-        // Seek indicator (shows target position while scrubbing)
+        // Seek indicator with chapter thumbnail preview
         viewModel.pendingSeekMs?.let { targetMs ->
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Box(
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 24.dp, vertical = 12.dp)
-                ) {
-                    Text(
-                        formatTime(targetMs),
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = theme.primary
-                    )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Chapter thumbnail preview
+                    val nearestChapter = viewModel.chapters.lastOrNull { it.startTimeMs <= targetMs }
+                    nearestChapter?.previewUrl?.let { url ->
+                        AsyncImage(
+                            model = url,
+                            contentDescription = nearestChapter.title,
+                            modifier = Modifier
+                                .width(160.dp)
+                                .aspectRatio(16f / 9f)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        Text(
+                            nearestChapter.title,
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.8f),
+                            maxLines = 1,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                        )
+                    }
+                    // Time display
+                    Box(
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 24.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            formatTime(targetMs),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = theme.primary
+                        )
+                    }
                 }
             }
         }
@@ -643,15 +716,33 @@ fun PlayerScreen(
                         (displayPos.toFloat() / viewModel.durationMs.toFloat()).coerceIn(0f, 1f)
                     } else 0f
 
-                    LinearProgressIndicator(
-                        progress = { progress },
+                    // Chapter-aware progress bar
+                    val barHeight = 4.dp
+                    val chapterMarkers = viewModel.chapters
+                    Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp)),
-                        color = theme.primary,
-                        trackColor = Color.White.copy(alpha = 0.3f)
-                    )
+                            .height(barHeight)
+                            .clip(RoundedCornerShape(2.dp))
+                    ) {
+                        val w = size.width
+                        val h = size.height
+                        // Track
+                        drawRect(Color.White.copy(alpha = 0.3f))
+                        // Played
+                        drawRect(theme.primary, size = Size(w * progress, h))
+                        // Chapter ticks
+                        if (viewModel.durationMs > 0) {
+                            for (ch in chapterMarkers) {
+                                val x = (ch.startTimeMs.toFloat() / viewModel.durationMs) * w
+                                drawRect(
+                                    Color.White.copy(alpha = 0.6f),
+                                    topLeft = Offset(x - 1f, 0f),
+                                    size = Size(2f, h)
+                                )
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -681,6 +772,18 @@ fun PlayerScreen(
                             formatTime(viewModel.durationMs),
                             fontSize = 15.sp,
                             color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+
+                    // Current chapter name
+                    viewModel.currentChapter?.let { chapter ->
+                        Text(
+                            chapter.title,
+                            fontSize = 13.sp,
+                            color = theme.primary.copy(alpha = 0.8f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
