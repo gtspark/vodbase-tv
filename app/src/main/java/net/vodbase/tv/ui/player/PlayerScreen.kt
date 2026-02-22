@@ -350,6 +350,8 @@ class PlayerViewModel @Inject constructor(
     fun seekToNextChapter(player: ExoPlayer?) {
         player ?: return
         if (chapters.isEmpty()) return
+        seekJob?.cancel()
+        pendingSeekMs = null
         val pos = player.currentPosition
         val next = chapters.firstOrNull { it.startTimeMs > pos + 1000 } ?: return
         player.seekTo(next.startTimeMs)
@@ -360,6 +362,8 @@ class PlayerViewModel @Inject constructor(
     fun seekToPrevChapter(player: ExoPlayer?) {
         player ?: return
         if (chapters.isEmpty()) return
+        seekJob?.cancel()
+        pendingSeekMs = null
         val pos = player.currentPosition
         // If more than 3s into current chapter, go to its start; otherwise go to previous
         val prev = chapters.lastOrNull { it.startTimeMs < pos - 3000 } ?: chapters.first()
@@ -547,22 +551,26 @@ fun PlayerScreen(
                     }
                     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
                         val now = System.currentTimeMillis()
-                        if (viewModel.chapters.isNotEmpty() && now - viewModel.lastLeftTapTime < 400) {
+                        val isRepeat = event.nativeKeyEvent.repeatCount > 0
+                        if (!isRepeat && viewModel.chapters.isNotEmpty() && now - viewModel.lastLeftTapTime < 400) {
                             viewModel.seekToPrevChapter(exoPlayer)
+                            viewModel.lastLeftTapTime = 0L
                         } else {
                             viewModel.seekBy(exoPlayer, -1)
+                            if (!isRepeat) viewModel.lastLeftTapTime = now
                         }
-                        viewModel.lastLeftTapTime = now
                         true
                     }
                     KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
                         val now = System.currentTimeMillis()
-                        if (viewModel.chapters.isNotEmpty() && now - viewModel.lastRightTapTime < 400) {
+                        val isRepeat = event.nativeKeyEvent.repeatCount > 0
+                        if (!isRepeat && viewModel.chapters.isNotEmpty() && now - viewModel.lastRightTapTime < 400) {
                             viewModel.seekToNextChapter(exoPlayer)
+                            viewModel.lastRightTapTime = 0L
                         } else {
                             viewModel.seekBy(exoPlayer, 1)
+                            if (!isRepeat) viewModel.lastRightTapTime = now
                         }
-                        viewModel.lastRightTapTime = now
                         true
                     }
                     KeyEvent.KEYCODE_BACK -> {
