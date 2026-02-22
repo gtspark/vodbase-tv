@@ -120,7 +120,8 @@ fun ShuffleScreen(
                         text = "Play",
                         onClick = { onPlay(vod.id) },
                         isBright = true,
-                        theme = theme
+                        theme = theme,
+                        autoFocus = true
                     )
 
                     ActionButton(

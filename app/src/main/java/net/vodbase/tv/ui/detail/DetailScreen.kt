@@ -116,7 +116,8 @@ fun DetailScreen(
                         text = "Resume from ${mins}:${"%02d".format(secs)}",
                         onClick = { onPlay((viewModel.resumeTime * 1000).toLong()) },
                         isBright = true,
-                        theme = theme
+                        theme = theme,
+                        autoFocus = true
                     )
                     ActionButton(
                         text = "Play from Start",
@@ -129,7 +130,8 @@ fun DetailScreen(
                         text = "Play",
                         onClick = { onPlay(0L) },
                         isBright = true,
-                        theme = theme
+                        theme = theme,
+                        autoFocus = true
                     )
                 }
 

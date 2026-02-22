@@ -1,21 +1,21 @@
 package net.vodbase.tv.data.model
 
 data class Vod(
-    val id: String,
-    val title: String,
-    val url: String,
-    val type: String,
-    val platform: String,
-    val gameContent: String?,
-    val duration: String,
-    val date: String,
-    val era: String,
-    val thumbnail: String,
-    val description: String?,
-    val video_id: String,
+    val id: String = "",
+    val title: String = "",
+    val url: String = "",
+    val type: String = "",
+    val platform: String? = null,
+    val gameContent: String? = null,
+    val duration: String = "0:00",
+    val date: String? = null,
+    val era: String = "",
+    val thumbnail: String = "",
+    val description: String? = null,
+    val video_id: String? = null,
     val series: SeriesInfo? = null
 ) {
-    val youtubeId: String get() = video_id
+    val youtubeId: String get() = video_id ?: id.removePrefix("youtube_")
 
     val durationSeconds: Long get() {
         val parts = duration.split(":").reversed()

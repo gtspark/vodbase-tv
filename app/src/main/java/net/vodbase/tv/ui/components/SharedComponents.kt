@@ -14,6 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -33,7 +35,8 @@ fun ActionButton(
     onClick: () -> Unit,
     isBright: Boolean,
     theme: ChannelTheme,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    autoFocus: Boolean = false
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -42,6 +45,11 @@ fun ActionButton(
         animationSpec = tween(durationMillis = 200),
         label = "btnBorder"
     )
+
+    val focusRequester = remember { FocusRequester() }
+    if (autoFocus) {
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    }
 
     val bgColor = when {
         isFocused && isBright -> theme.primary
@@ -66,6 +74,7 @@ fun ActionButton(
                 color = theme.focusRing.copy(alpha = borderAlpha),
                 shape = theme.shape
             )
+            .then(if (autoFocus) Modifier.focusRequester(focusRequester) else Modifier)
             .then(
                 if (enabled) Modifier.clickable(
                     interactionSource = interactionSource,
@@ -164,11 +173,13 @@ fun VodDetailCard(
                 vod.gameContent?.let { MetaBadge(it, theme) }
             }
 
-            Text(
-                vod.date,
-                fontSize = 12.sp,
-                color = theme.onSurface.copy(alpha = 0.4f)
-            )
+            vod.date?.let { date ->
+                Text(
+                    date,
+                    fontSize = 12.sp,
+                    color = theme.onSurface.copy(alpha = 0.4f)
+                )
+            }
 
             vod.series?.let { series ->
                 Text(
