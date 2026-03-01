@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusGroup
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.tv.foundation.lazy.list.TvLazyColumn
 import androidx.tv.foundation.lazy.list.TvLazyRow
 import androidx.tv.foundation.lazy.list.items
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,7 +42,7 @@ class SearchViewModel @Inject constructor(
     fun updateQuery(channelId: String, newQuery: String) {
         query = newQuery
         results = if (newQuery.length >= 2) {
-            vodRepository.searchVods(channelId, newQuery).take(20)
+            vodRepository.searchVods(channelId, newQuery).take(50)
         } else {
             emptyList()
         }
@@ -121,17 +123,27 @@ fun SearchScreen(
                 )
             }
 
-            // Results row
+            // Results grid - chunked into rows of 5
             if (viewModel.results.isNotEmpty()) {
-                TvLazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                val rows = viewModel.results.chunked(5)
+                TvLazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    items(viewModel.results) { vod ->
-                        VodCard(
-                            vod = vod,
-                            theme = theme,
-                            onClick = { onVodSelected(vod.id) }
-                        )
+                    items(rows.size, key = { rows[it].first().id }) { rowIndex ->
+                        val rowVods = rows[rowIndex]
+                        TvLazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.focusGroup()
+                        ) {
+                            items(rowVods, key = { it.id }) { vod ->
+                                VodCard(
+                                    vod = vod,
+                                    theme = theme,
+                                    onClick = { onVodSelected(vod.id) }
+                                )
+                            }
+                        }
                     }
                 }
             }

@@ -39,6 +39,8 @@ fun MenuOverlay(
     userEmail: String?,
     onSignOut: () -> Unit,
     onSignIn: () -> Unit,
+    onSettings: () -> Unit,
+    onSearch: (() -> Unit)?,
     theme: ChannelTheme
 ) {
     if (isVisible) {
@@ -145,7 +147,33 @@ fun MenuOverlay(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Quick actions
+                    if (onSearch != null) {
+                        ActionButton(
+                            text = "Search",
+                            isBright = false,
+                            theme = theme,
+                            onClick = {
+                                onSearch()
+                                onDismiss()
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+
+                    ActionButton(
+                        text = "Settings",
+                        isBright = false,
+                        theme = theme,
+                        onClick = {
+                            onSettings()
+                            onDismiss()
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Divider(color = Color.White.copy(alpha = 0.12f))
 

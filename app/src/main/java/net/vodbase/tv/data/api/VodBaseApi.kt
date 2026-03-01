@@ -73,4 +73,9 @@ interface VodBaseApi {
         @Header("X-Device-Token") token: String,
         @Body body: Map<String, String>
     ): Response<Any>
+
+    @DELETE("/api/vodbase/account")
+    suspend fun deleteAccount(
+        @Header("X-Device-Token") token: String
+    ): Response<Any>
 }

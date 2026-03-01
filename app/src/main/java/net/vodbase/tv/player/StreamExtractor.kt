@@ -28,7 +28,7 @@ class StreamExtractor @Inject constructor() {
         NewPipe.init(DownloaderImpl.getInstance())
     }
 
-    suspend fun extractStream(youtubeId: String): ExtractedStream = withContext(Dispatchers.IO) {
+    suspend fun extractStream(youtubeId: String, preferredHeightPx: Int? = null): ExtractedStream = withContext(Dispatchers.IO) {
         val url = "https://www.youtube.com/watch?v=$youtubeId"
         val info = StreamInfo.getInfo(ServiceList.YouTube, url)
 
@@ -55,7 +55,13 @@ class StreamExtractor @Inject constructor() {
             .sortedByDescending { it.averageBitrate }
 
         if (videoOnly.isNotEmpty() && audioOnly.isNotEmpty()) {
-            val bestVideo = videoOnly.first()
+            val bestVideo = if (preferredHeightPx != null) {
+                videoOnly.firstOrNull {
+                    (it.resolution?.replace("p", "")?.toIntOrNull() ?: 0) <= preferredHeightPx
+                } ?: videoOnly.last()
+            } else {
+                videoOnly.first()
+            }
             val bestAudio = audioOnly.first()
             val durationSec = info.duration
 
@@ -102,7 +108,13 @@ class StreamExtractor @Inject constructor() {
             .sortedByDescending { it.resolution?.replace("p", "")?.toIntOrNull() ?: 0 }
 
         if (progressiveStreams.isNotEmpty()) {
-            val best = progressiveStreams.first()
+            val best = if (preferredHeightPx != null) {
+                progressiveStreams.firstOrNull {
+                    (it.resolution?.replace("p", "")?.toIntOrNull() ?: 0) <= preferredHeightPx
+                } ?: progressiveStreams.last()
+            } else {
+                progressiveStreams.first()
+            }
             return@withContext ExtractedStream(
                 videoUrl = best.content,
                 audioUrl = null,

@@ -36,6 +36,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
@@ -54,10 +55,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import net.vodbase.tv.data.model.Chapter
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.data.repository.ProgressRepository
+import net.vodbase.tv.data.repository.SettingsRepository
 import net.vodbase.tv.data.repository.VodRepository
 import net.vodbase.tv.player.StreamExtractor
 import net.vodbase.tv.ui.theme.ChannelThemes
@@ -67,7 +70,8 @@ import javax.inject.Inject
 class PlayerViewModel @Inject constructor(
     private val streamExtractor: StreamExtractor,
     private val vodRepository: VodRepository,
-    private val progressRepository: ProgressRepository
+    private val progressRepository: ProgressRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     var isLoading by mutableStateOf(true)
@@ -114,6 +118,7 @@ class PlayerViewModel @Inject constructor(
     private var channelId: String? = null
     private var currentVodId: String? = null
     private var hasMarkedWatched = false
+    private var autoplayEnabled = true
     private var manifestFiles = mutableListOf<java.io.File>()
 
     @OptIn(UnstableApi::class)
@@ -149,7 +154,19 @@ class PlayerViewModel @Inject constructor(
                 }
                 vod = foundVod
 
-                val stream = streamExtractor.extractStream(foundVod.youtubeId)
+                // Read settings
+                val qualitySetting = settingsRepository.videoQuality.first()
+                val speedSetting = settingsRepository.playbackSpeed.first()
+                autoplayEnabled = settingsRepository.autoplayNext.first()
+
+                val preferredHeight = when (qualitySetting) {
+                    "1080" -> 1080
+                    "720" -> 720
+                    "480" -> 480
+                    "360" -> 360
+                    else -> null
+                }
+                val stream = streamExtractor.extractStream(foundVod.youtubeId, preferredHeight)
                 chapters = stream.chapters
 
                 val loadControl = DefaultLoadControl.Builder()
@@ -197,6 +214,10 @@ class PlayerViewModel @Inject constructor(
                 }
 
                 exoPlayer.prepare()
+
+                if (speedSetting != 1.0f) {
+                    exoPlayer.playbackParameters = PlaybackParameters(speedSetting)
+                }
 
                 if (resumeMs > 0) {
                     exoPlayer.seekTo(resumeMs)
@@ -402,7 +423,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     // #15 - emit to SharedFlow instead of calling nav callback from coroutine
-    fun startUpNextCountdown() {
+    fun startUpNextCountdown(forceAutoplay: Boolean = false) {
+        if (!forceAutoplay && !autoplayEnabled) return
         countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
             val next = findNextVod()

@@ -50,4 +50,17 @@ class AuthRepository @Inject constructor(
             prefs.remove(USER_EMAIL_KEY)
         }
     }
+
+    suspend fun deleteAccount(): Boolean {
+        val token = getDeviceToken() ?: return false
+        return try {
+            val response = api.deleteAccount(token)
+            if (response.isSuccessful) {
+                logout()
+                true
+            } else false
+        } catch (e: Exception) {
+            false
+        }
+    }
 }

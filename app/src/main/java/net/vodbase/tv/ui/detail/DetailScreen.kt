@@ -94,7 +94,7 @@ fun DetailScreen(
             AsyncImage(
                 model = vod.thumbnail,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize().blur(25.dp).alpha(0.35f),
+                modifier = Modifier.fillMaxSize().blur(12.dp).alpha(0.25f),
                 contentScale = ContentScale.Crop
             )
         }

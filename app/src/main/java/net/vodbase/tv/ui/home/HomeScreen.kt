@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import android.view.KeyEvent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +20,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -30,11 +32,25 @@ import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelThemes
 
 @Composable
-fun HomeScreen(onChannelSelected: (String) -> Unit) {
+fun HomeScreen(
+    onChannelSelected: (String) -> Unit,
+    onSearch: (() -> Unit)? = null
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0A0A0F))
+            .onPreviewKeyEvent { event ->
+                if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                    event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_SEARCH &&
+                    onSearch != null
+                ) {
+                    onSearch()
+                    true
+                } else {
+                    false
+                }
+            }
             .padding(horizontal = 40.dp, vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -78,6 +94,14 @@ fun HomeScreen(onChannelSelected: (String) -> Unit) {
                     ChannelCard(Channel.NL, Modifier.weight(1f)) { onChannelSelected(it.id) }
                     ChannelCard(Channel.MOONMOON, Modifier.weight(1f)) { onChannelSelected(it.id) }
                 }
+            }
+
+            if (onSearch != null) {
+                Text(
+                    "Press Search to find VODs",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.25f)
+                )
             }
         }
     }

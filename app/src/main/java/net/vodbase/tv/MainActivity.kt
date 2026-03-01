@@ -32,6 +32,7 @@ import net.vodbase.tv.ui.home.HomeScreen
 import net.vodbase.tv.ui.menu.MenuOverlay
 import net.vodbase.tv.ui.player.PlayerScreen
 import net.vodbase.tv.ui.search.SearchScreen
+import net.vodbase.tv.ui.settings.SettingsScreen
 import net.vodbase.tv.ui.shuffle.ShuffleScreen
 import net.vodbase.tv.ui.theme.ChannelThemes
 import net.vodbase.tv.ui.theme.VodBaseTheme
@@ -114,6 +115,9 @@ class MainActivity : ComponentActivity() {
                                 onChannelSelected = { channel ->
                                     currentChannel = channel
                                     navController.navigate("browse/${channel}")
+                                },
+                                onSearch = {
+                                    navController.navigate("search/jerma")
                                 }
                             )
                         }
@@ -220,6 +224,20 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() }
                             )
                         }
+
+                        composable("settings") {
+                            val settingsTheme = currentChannel?.let { ChannelThemes.forChannelId(it) }
+                                ?: ChannelThemes.Jerma
+                            SettingsScreen(
+                                theme = settingsTheme,
+                                onBack = { navController.popBackStack() },
+                                onAccountDeleted = {
+                                    navController.navigate("auth") {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
                     }
 
                     // Menu overlay drawn on top of NavHost
@@ -240,6 +258,12 @@ class MainActivity : ComponentActivity() {
                         },
                         onSignIn = {
                             navController.navigate("auth")
+                        },
+                        onSettings = {
+                            navController.navigate("settings")
+                        },
+                        onSearch = currentChannel?.let { ch ->
+                            { navController.navigate("search/$ch") }
                         },
                         theme = menuTheme
                     )

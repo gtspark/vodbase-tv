@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.compose.ui.focus.focusGroup
 import androidx.tv.foundation.lazy.list.TvLazyColumn
 import androidx.tv.foundation.lazy.list.TvLazyRow
 import androidx.tv.foundation.lazy.list.items
@@ -217,7 +218,7 @@ fun BrowseScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Header
-                item {
+                item(key = "header") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -267,7 +268,7 @@ fun BrowseScreen(
 
                 // Continue Watching hero card
                 viewModel.continueWatching?.let { cw ->
-                    item {
+                    item(key = "continue_watching") {
                         ContinueWatchingHero(
                             info = cw,
                             theme = theme,
@@ -277,9 +278,9 @@ fun BrowseScreen(
                 }
 
                 // VOD rows
-                items(viewModel.rows.size) { index ->
+                items(viewModel.rows.size, key = { viewModel.rows[it].title }) { index ->
                     val row = viewModel.rows[index]
-                    Column {
+                    Column(modifier = Modifier.focusGroup()) {
                         Text(
                             row.title,
                             modifier = Modifier.padding(start = 32.dp, bottom = 8.dp),
@@ -291,7 +292,7 @@ fun BrowseScreen(
                             contentPadding = PaddingValues(horizontal = 32.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(row.vods) { vod ->
+                            items(row.vods, key = { it.id }) { vod ->
                                 VodCard(
                                     vod = vod,
                                     theme = theme,

@@ -12,8 +12,8 @@ object AnimationConstants {
     const val HERO_SCALE_FOCUSED = 1.03f
 
     // Durations (ms)
-    const val FOCUS_DURATION_MS = 200
-    const val COLOR_DURATION_MS = 200
+    const val FOCUS_DURATION_MS = 150
+    const val COLOR_DURATION_MS = 150
     const val NAV_TRANSITION_MS = 300
     const val PLAYER_TRANSITION_MS = 100
     const val SHIMMER_DURATION_MS = 1200

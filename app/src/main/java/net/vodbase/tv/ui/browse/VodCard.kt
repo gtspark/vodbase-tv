@@ -21,7 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
@@ -34,6 +36,7 @@ fun VodCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var isFocused by remember { mutableStateOf(false) }
     val borderAlpha by animateFloatAsState(
         targetValue = if (isFocused) 1f else 0f,
@@ -69,7 +72,11 @@ fun VodCard(
             // Thumbnail
             Box {
                 AsyncImage(
-                    model = vod.thumbnail,
+                    model = ImageRequest.Builder(context)
+                        .data(vod.thumbnail)
+                        .size(400, 225)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = vod.title,
                     modifier = Modifier
                         .fillMaxWidth()
