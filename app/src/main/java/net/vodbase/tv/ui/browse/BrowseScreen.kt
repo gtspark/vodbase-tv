@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.compose.ui.focus.focusGroup
 import androidx.tv.foundation.lazy.list.TvLazyColumn
 import androidx.tv.foundation.lazy.list.TvLazyRow
 import androidx.tv.foundation.lazy.list.items
@@ -280,7 +279,7 @@ fun BrowseScreen(
                 // VOD rows
                 items(viewModel.rows.size, key = { viewModel.rows[it].title }) { index ->
                     val row = viewModel.rows[index]
-                    Column(modifier = Modifier.focusGroup()) {
+                    Column() {
                         Text(
                             row.title,
                             modifier = Modifier.padding(start = 32.dp, bottom = 8.dp),
