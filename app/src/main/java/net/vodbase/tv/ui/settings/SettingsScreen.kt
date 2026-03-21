@@ -34,6 +34,7 @@ import net.vodbase.tv.data.repository.AuthRepository
 import net.vodbase.tv.data.repository.SettingsRepository
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
 @HiltViewModel
@@ -124,6 +125,7 @@ fun SettingsScreen(
     onAccountDeleted: (() -> Unit)? = null,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val dims = LocalAppDimensions.current
     val quality by viewModel.videoQuality.collectAsState()
     val speed by viewModel.playbackSpeed.collectAsState()
     val autoplay by viewModel.autoplayNext.collectAsState()
@@ -148,12 +150,12 @@ fun SettingsScreen(
                     false
                 }
             }
-            .padding(48.dp)
+            .padding(dims.settingsPad)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(if (dims.settingsPad < 32.dp) 10.dp else 16.dp)) {
             Text(
                 "Settings",
-                fontSize = 28.sp,
+                fontSize = dims.settingsTitleFontSp.sp,
                 fontWeight = FontWeight.Bold,
                 color = theme.primary
             )

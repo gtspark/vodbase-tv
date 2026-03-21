@@ -27,6 +27,7 @@ import coil.request.ImageRequest
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 
 @Composable
 fun VodCard(
@@ -37,6 +38,7 @@ fun VodCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val dims = LocalAppDimensions.current
     var isFocused by remember { mutableStateOf(false) }
     val borderAlpha by animateFloatAsState(
         targetValue = if (isFocused) 1f else 0f,
@@ -56,7 +58,7 @@ fun VodCard(
 
     Box(
         modifier = modifier
-            .width(200.dp)
+            .width(dims.vodCardWidth)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(theme.shape)
             .background(backgroundColor)
@@ -74,7 +76,7 @@ fun VodCard(
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(vod.thumbnail)
-                        .size(400, 225)
+                        .size(dims.vodCardImageSize, dims.vodCardImageSize * 9 / 16)
                         .crossfade(true)
                         .build(),
                     contentDescription = vod.title,

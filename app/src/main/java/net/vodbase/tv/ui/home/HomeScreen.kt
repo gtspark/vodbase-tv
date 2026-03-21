@@ -30,12 +30,14 @@ import coil.compose.AsyncImage
 import net.vodbase.tv.data.model.Channel
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelThemes
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 
 @Composable
 fun HomeScreen(
     onChannelSelected: (String) -> Unit,
     onSearch: (() -> Unit)? = null
 ) {
+    val dims = LocalAppDimensions.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -51,17 +53,17 @@ fun HomeScreen(
                     false
                 }
             }
-            .padding(horizontal = 40.dp, vertical = 16.dp),
+            .padding(horizontal = dims.homePad, vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(if (dims.homePad < 24.dp) 8.dp else 14.dp)
         ) {
             // Logo with gradient
             Text(
                 "VODBASE",
-                fontSize = 34.sp,
+                fontSize = dims.homeLogoFontSp.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = (-2).sp,
                 style = TextStyle(
@@ -77,8 +79,8 @@ fun HomeScreen(
 
             // Channel grid - 2x2
             Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.widthIn(max = 760.dp)
+                verticalArrangement = Arrangement.spacedBy(if (dims.homePad < 24.dp) 6.dp else 10.dp),
+                modifier = Modifier.widthIn(max = dims.homeGridMaxWidth)
             ) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -110,6 +112,7 @@ fun HomeScreen(
 @Composable
 fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Channel) -> Unit) {
     val theme = ChannelThemes.forChannel(channel)
+    val dims = LocalAppDimensions.current
     var isFocused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isFocused) AnimationConstants.CHANNEL_SCALE_FOCUSED else 1f,
@@ -134,7 +137,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
 
     Box(
         modifier = modifier
-            .height(170.dp)
+            .height(dims.channelCardHeight)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(theme.shape)
             .background(
@@ -152,17 +155,17 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
             )
             .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick(channel) }
-            .padding(20.dp)
+            .padding(if (dims.channelCardHeight < 140.dp) 10.dp else 20.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(if (dims.channelCardHeight < 140.dp) 8.dp else 14.dp)
         ) {
             // Avatar with colored ring
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(dims.channelAvatarSize)
                     .border(2.dp, avatarRingColor, CircleShape)
                     .padding(3.dp)
             ) {
@@ -183,7 +186,7 @@ fun ChannelCard(channel: Channel, modifier: Modifier = Modifier, onClick: (Chann
             ) {
                 Text(
                     channel.displayName,
-                    fontSize = 22.sp,
+                    fontSize = dims.channelNameFontSp.sp,
                     fontWeight = FontWeight.Bold,
                     color = nameColor
                 )

@@ -31,9 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tv.foundation.lazy.list.TvLazyColumn
-import androidx.tv.foundation.lazy.list.TvLazyRow
-import androidx.tv.foundation.lazy.list.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import coil.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -44,6 +44,7 @@ import net.vodbase.tv.data.repository.VodRepository
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
 import net.vodbase.tv.ui.theme.ChannelThemes
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
 data class VodRow(val title: String, val vods: List<Vod>)
@@ -166,6 +167,7 @@ fun BrowseScreen(
     viewModel: BrowseViewModel = hiltViewModel()
 ) {
     val theme = ChannelThemes.forChannelId(channel)
+    val dims = LocalAppDimensions.current
 
     LaunchedEffect(channel) {
         viewModel.loadChannel(channel)
@@ -211,23 +213,23 @@ fun BrowseScreen(
                 }
             }
         } else {
-            TvLazyColumn(
+            LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(vertical = dims.rowSpacing),
+                verticalArrangement = Arrangement.spacedBy(dims.rowSpacing)
             ) {
                 // Header
                 item(key = "header") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 32.dp, vertical = 4.dp),
+                            .padding(horizontal = dims.screenHPad, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
                             theme.channelName,
-                            fontSize = 24.sp,
+                            fontSize = dims.headerFontSp.sp,
                             fontWeight = FontWeight.Bold,
                             color = theme.primary
                         )
@@ -282,13 +284,13 @@ fun BrowseScreen(
                     Column() {
                         Text(
                             row.title,
-                            modifier = Modifier.padding(start = 32.dp, bottom = 8.dp),
-                            fontSize = 16.sp,
+                            modifier = Modifier.padding(start = dims.screenHPad, bottom = 8.dp),
+                            fontSize = dims.rowLabelFontSp.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = theme.onSurface.copy(alpha = 0.9f)
                         )
-                        TvLazyRow(
-                            contentPadding = PaddingValues(horizontal = 32.dp),
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = dims.screenHPad),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(row.vods, key = { it.id }) { vod ->
@@ -330,15 +332,16 @@ fun ContinueWatchingHero(
         label = "heroTitleColor"
     )
 
+    val dims = LocalAppDimensions.current
     val progressFraction = if (info.duration > 0) (info.currentTime / info.duration).toFloat().coerceIn(0f, 1f) else 0f
     val mins = (info.currentTime / 60).toInt()
     val secs = (info.currentTime % 60).toInt()
     val totalMins = (info.duration / 60).toInt()
 
-    Column(modifier = Modifier.padding(horizontal = 32.dp)) {
+    Column(modifier = Modifier.padding(horizontal = dims.screenHPad)) {
         Text(
             "Continue Watching",
-            fontSize = 16.sp,
+            fontSize = dims.rowLabelFontSp.sp,
             fontWeight = FontWeight.SemiBold,
             color = theme.primary,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -347,7 +350,7 @@ fun ContinueWatchingHero(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .height(dims.heroHeight)
                 .graphicsLayer { scaleX = scale; scaleY = scale }
                 .clip(theme.shape)
                 .background(theme.surface)

@@ -5,6 +5,8 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,7 +23,9 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import android.view.WindowManager
@@ -64,6 +68,7 @@ import net.vodbase.tv.data.repository.SettingsRepository
 import net.vodbase.tv.data.repository.VodRepository
 import net.vodbase.tv.player.StreamExtractor
 import net.vodbase.tv.ui.theme.ChannelThemes
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
 @HiltViewModel
@@ -504,8 +509,10 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     val theme = ChannelThemes.forChannelId(channel)
+    val dims = LocalAppDimensions.current
     var exoPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
     val focusRequester = remember { FocusRequester() }
+    var boxWidth by remember { mutableStateOf(0f) }
 
     LaunchedEffect(vodId) {
         viewModel.loadAndPlay(context, channel, vodId, resumeTimeMs) { player ->
@@ -563,8 +570,39 @@ fun PlayerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .onSizeChanged { boxWidth = it.width.toFloat() }
             .focusRequester(focusRequester)
             .focusable()
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    if (viewModel.upNextVod != null) {
+                        viewModel.playUpNextNow()
+                    } else if (boxWidth > 0f && offset.x < boxWidth * 0.25f) {
+                        viewModel.seekBy(exoPlayer, -1)
+                    } else if (boxWidth > 0f && offset.x > boxWidth * 0.75f) {
+                        viewModel.seekBy(exoPlayer, 1)
+                    } else {
+                        viewModel.togglePlayPause(exoPlayer)
+                    }
+                }
+            }
+            .pointerInput("drag") {
+                var totalDrag = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { totalDrag = 0f },
+                    onDragEnd = {
+                        if (boxWidth > 0f && kotlin.math.abs(totalDrag) > 40f) {
+                            val fraction = totalDrag / boxWidth
+                            val seekMs = (fraction * (viewModel.durationMs.coerceAtLeast(1))).toLong()
+                            val player = exoPlayer ?: return@detectHorizontalDragGestures
+                            val newPos = (player.currentPosition + seekMs).coerceIn(0, player.duration.coerceAtLeast(0))
+                            player.seekTo(newPos)
+                            viewModel.showOverlayBriefly()
+                        }
+                    },
+                    onHorizontalDrag = { _, dragAmount -> totalDrag += dragAmount }
+                )
+            }
             .onPreviewKeyEvent { event ->
                 if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
                 when (event.nativeKeyEvent.keyCode) {
@@ -654,11 +692,11 @@ fun PlayerScreen(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
-                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(40.dp)),
+                        .size(dims.playerPauseSize)
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(dims.playerPauseSize / 2)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("II", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("II", fontSize = dims.playerPauseFontSp.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }
@@ -674,7 +712,7 @@ fun PlayerScreen(
                             model = url,
                             contentDescription = nearestChapter.title,
                             modifier = Modifier
-                                .width(160.dp)
+                                .width(dims.playerSeekPreviewWidth)
                                 .aspectRatio(16f / 9f)
                                 .clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Crop
@@ -695,7 +733,7 @@ fun PlayerScreen(
                     ) {
                         Text(
                             formatTime(targetMs),
-                            fontSize = 28.sp,
+                            fontSize = dims.playerSeekFontSp.sp,
                             fontWeight = FontWeight.Bold,
                             color = theme.primary
                         )
@@ -721,11 +759,11 @@ fun PlayerScreen(
                                 colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
                             )
                         )
-                        .padding(horizontal = 40.dp, vertical = 20.dp)
+                        .padding(horizontal = dims.playerHPad, vertical = dims.playerVPad)
                 ) {
                     Text(
                         viewModel.vod?.title ?: "",
-                        fontSize = 20.sp,
+                        fontSize = dims.playerTitleFontSp.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White,
                         maxLines = 1,
@@ -743,7 +781,7 @@ fun PlayerScreen(
                                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
                             )
                         )
-                        .padding(horizontal = 40.dp, vertical = 24.dp)
+                        .padding(horizontal = dims.playerHPad, vertical = dims.playerVPad)
                 ) {
                     // Progress bar
                     val displayPos = viewModel.pendingSeekMs ?: viewModel.currentPositionMs
@@ -788,14 +826,14 @@ fun PlayerScreen(
                     ) {
                         Text(
                             formatTime(displayPos),
-                            fontSize = 15.sp,
+                            fontSize = dims.playerTimeFontSp.sp,
                             color = if (viewModel.pendingSeekMs != null) theme.primary else Color.White
                         )
                         // Play state indicator
                         Text(
                             if (viewModel.pendingSeekMs != null) "Seeking..."
                             else if (viewModel.isPlaying) "Playing" else "Paused",
-                            fontSize = 15.sp,
+                            fontSize = dims.playerTimeFontSp.sp,
                             fontWeight = FontWeight.Medium,
                             color = when {
                                 viewModel.pendingSeekMs != null -> theme.primary
@@ -805,7 +843,7 @@ fun PlayerScreen(
                         )
                         Text(
                             formatTime(viewModel.durationMs),
-                            fontSize = 15.sp,
+                            fontSize = dims.playerTimeFontSp.sp,
                             color = Color.White.copy(alpha = 0.7f)
                         )
                     }
@@ -831,12 +869,12 @@ fun PlayerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(32.dp),
+                        .padding(dims.playerUpNextPad),
                     contentAlignment = Alignment.BottomEnd
                 ) {
                     Column(
                         modifier = Modifier
-                            .width(320.dp)
+                            .width(dims.playerUpNextWidth)
                             .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
                             .padding(16.dp)
                     ) {

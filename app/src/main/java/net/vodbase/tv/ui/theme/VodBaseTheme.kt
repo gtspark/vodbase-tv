@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -71,9 +72,13 @@ private val VodBaseTypography = Typography(
 
 @Composable
 fun VodBaseTheme(content: @Composable () -> Unit) {
+    val dims = rememberAppDimensions()
     MaterialTheme(
         colorScheme = VodBaseDarkColors,
-        typography = VodBaseTypography,
-        content = content
-    )
+        typography = VodBaseTypography
+    ) {
+        CompositionLocalProvider(LocalAppDimensions provides dims) {
+            content()
+        }
+    }
 }

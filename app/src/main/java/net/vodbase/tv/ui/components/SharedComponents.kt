@@ -29,6 +29,7 @@ import coil.compose.AsyncImage
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 
 /**
  * A themed button with animated focus ring, used across Detail, Shuffle, and Menu screens.
@@ -143,9 +144,10 @@ fun VodDetailCard(
     label: String? = null,
     actions: @Composable ColumnScope.() -> Unit
 ) {
+    val dims = LocalAppDimensions.current
     Row(
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (dims.detailHPad < 24.dp) 12.dp else 24.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Thumbnail
@@ -177,12 +179,12 @@ fun VodDetailCard(
 
             Text(
                 vod.title,
-                fontSize = 18.sp,
+                fontSize = dims.detailTitleFontSp.sp,
                 fontWeight = FontWeight.Bold,
                 color = theme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                lineHeight = 22.sp
+                lineHeight = (dims.detailTitleFontSp * 1.22f).sp
             )
 
             // Meta row

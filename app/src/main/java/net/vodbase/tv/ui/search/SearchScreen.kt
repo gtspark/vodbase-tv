@@ -19,14 +19,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
-import androidx.tv.foundation.lazy.list.TvLazyColumn
-import androidx.tv.foundation.lazy.list.TvLazyRow
-import androidx.tv.foundation.lazy.list.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import dagger.hilt.android.lifecycle.HiltViewModel
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.data.repository.VodRepository
 import net.vodbase.tv.ui.browse.VodCard
 import net.vodbase.tv.ui.theme.ChannelThemes
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
 @HiltViewModel
@@ -57,6 +58,7 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val theme = ChannelThemes.forChannelId(channel)
+    val dims = LocalAppDimensions.current
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -84,12 +86,12 @@ fun SearchScreen(
                     false
                 }
             }
-            .padding(48.dp)
+            .padding(dims.searchPad)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(if (dims.searchPad < 32.dp) 12.dp else 24.dp)) {
             Text(
                 "Search",
-                fontSize = 28.sp,
+                fontSize = dims.searchTitleFontSp.sp,
                 fontWeight = FontWeight.Bold,
                 color = theme.primary
             )
@@ -103,11 +105,11 @@ fun SearchScreen(
                     .background(theme.surface, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
                     .padding(16.dp)
                     .focusRequester(focusRequester),
-                textStyle = TextStyle(color = Color.White, fontSize = 18.sp),
+                textStyle = TextStyle(color = Color.White, fontSize = dims.searchInputFontSp.sp),
                 cursorBrush = SolidColor(theme.primary),
                 decorationBox = { innerTextField ->
                     if (viewModel.query.isEmpty()) {
-                        Text("Type to search VODs...", color = Color(0xFF7A7A9A), fontSize = 18.sp)
+                        Text("Type to search VODs...", color = Color(0xFF7A7A9A), fontSize = dims.searchInputFontSp.sp)
                     }
                     innerTextField()
                 }
@@ -124,14 +126,14 @@ fun SearchScreen(
 
             // Results grid - chunked into rows of 5
             if (viewModel.results.isNotEmpty()) {
-                val rows = viewModel.results.chunked(5)
-                TvLazyColumn(
+                val rows = viewModel.results.chunked(dims.searchChunkSize)
+                LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(rows.size, key = { rows[it].first().id }) { rowIndex ->
                         val rowVods = rows[rowIndex]
-                        TvLazyRow(
+                        LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(rowVods, key = { it.id }) { vod ->

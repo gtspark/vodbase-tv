@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.vodbase.tv.ui.components.ActionButton
 import net.vodbase.tv.ui.theme.ChannelTheme
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 
 private val PanelBackground = Color(0xFF1A1A1A)
 
@@ -44,6 +45,7 @@ fun MenuOverlay(
     theme: ChannelTheme
 ) {
     if (isVisible) {
+        val dims = LocalAppDimensions.current
         val focusRequester = remember { FocusRequester() }
 
         // Request focus on the panel when it opens
@@ -80,7 +82,7 @@ fun MenuOverlay(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
-                    .width(280.dp)
+                    .width(dims.menuPanelWidth)
             ) {
                 Column(
                     modifier = Modifier

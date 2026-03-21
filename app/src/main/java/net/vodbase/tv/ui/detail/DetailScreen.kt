@@ -25,6 +25,7 @@ import net.vodbase.tv.ui.components.ActionButton
 import net.vodbase.tv.ui.components.DetailSkeletonScreen
 import net.vodbase.tv.ui.components.VodDetailCard
 import net.vodbase.tv.ui.theme.ChannelThemes
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
 @HiltViewModel
@@ -81,6 +82,7 @@ fun DetailScreen(
     viewModel: DetailViewModel = hiltViewModel()
 ) {
     val theme = ChannelThemes.forChannelId(channel)
+    val dims = LocalAppDimensions.current
 
     LaunchedEffect(channel, vodId) {
         viewModel.load(channel, vodId)
@@ -109,13 +111,13 @@ fun DetailScreen(
                             theme.primary.copy(alpha = 0.05f),
                             theme.background.copy(alpha = 0.85f)
                         ),
-                        radius = 800f
+                        radius = dims.detailRadialRadius
                     )
                 )
         )
 
         // Content
-        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp)) {
+        Box(modifier = Modifier.fillMaxSize().padding(horizontal = dims.detailHPad, vertical = dims.detailVPad)) {
         if (viewModel.error != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(viewModel.error ?: "", color = theme.error, fontSize = 16.sp)

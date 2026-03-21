@@ -19,8 +19,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tv.material3.Button
-import androidx.tv.material3.ButtonDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +28,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.vodbase.tv.data.repository.AuthRepository
+import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
 @HiltViewModel
@@ -121,6 +122,8 @@ fun AuthScreen(
     onSkip: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
+    val dims = LocalAppDimensions.current
+
     LaunchedEffect(Unit) {
         viewModel.startQrLogin(onAuthenticated)
     }
@@ -129,7 +132,7 @@ fun AuthScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0A0A0F))
-            .padding(horizontal = 48.dp, vertical = 24.dp),
+            .padding(horizontal = dims.authHPad, vertical = dims.authVPad),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -140,13 +143,13 @@ fun AuthScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "VOD",
-                    fontSize = 32.sp,
+                    fontSize = dims.authLogoFontSp.sp,
                     fontWeight = FontWeight.Black,
                     color = Color(0xFFEF4444)
                 )
                 Text(
                     "BASE",
-                    fontSize = 32.sp,
+                    fontSize = dims.authLogoFontSp.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.White
                 )
@@ -163,7 +166,7 @@ fun AuthScreen(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = "QR Code",
                         modifier = Modifier
-                            .size(200.dp)
+                            .size(dims.authQrSize)
                             .clip(RoundedCornerShape(6.dp))
                     )
                 }
@@ -172,7 +175,7 @@ fun AuthScreen(
             // Status
             Text(
                 viewModel.status,
-                fontSize = 16.sp,
+                fontSize = dims.authStatusFontSp.sp,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
