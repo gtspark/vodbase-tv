@@ -185,7 +185,7 @@ fun AuthScreen(
             // Skip button
             Button(
                 onClick = onSkip,
-                colors = ButtonDefaults.colors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2A2A3E),
                     contentColor = Color(0xFF7A7A9A)
                 )
