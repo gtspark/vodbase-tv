@@ -27,6 +27,7 @@ import coil.request.ImageRequest
 import net.vodbase.tv.data.model.Vod
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
+import net.vodbase.tv.ui.theme.DeviceUiProfile
 import net.vodbase.tv.ui.theme.LocalAppDimensions
 
 @Composable
@@ -110,7 +111,11 @@ fun VodCard(
                         )
                         .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
-                    Text(vod.duration, fontSize = 10.sp, color = Color.White)
+                    Text(
+                        vod.duration,
+                        fontSize = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 8.sp else 10.sp,
+                        color = Color.White
+                    )
                 }
 
                 // Watched indicator
@@ -125,7 +130,11 @@ fun VodCard(
                             )
                             .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
-                        Text("Watched", fontSize = 9.sp, color = Color.White)
+                        Text(
+                            if (dims.profile == DeviceUiProfile.THOR_BOTTOM) "Seen" else "Watched",
+                            fontSize = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 8.sp else 9.sp,
+                            color = Color.White
+                        )
                     }
                 }
             }
@@ -133,13 +142,16 @@ fun VodCard(
             // Title
             Text(
                 vod.title,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                fontSize = 12.sp,
+                modifier = Modifier.padding(
+                    horizontal = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 6.dp else 8.dp,
+                    vertical = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 4.dp else 6.dp
+                ),
+                fontSize = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 10.sp else 12.sp,
                 fontWeight = if (isFocused) FontWeight.Medium else FontWeight.Normal,
                 color = if (isFocused) Color.White else theme.onSurface.copy(alpha = 0.85f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                lineHeight = 15.sp
+                lineHeight = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 12.sp else 15.sp
             )
         }
     }

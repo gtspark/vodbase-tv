@@ -8,6 +8,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 data class AppDimensions(
+    val profile: DeviceUiProfile,
+
     // VodCard
     val vodCardWidth: Dp,
     val vodCardImageSize: Int,
@@ -69,6 +71,7 @@ data class AppDimensions(
 ) {
     companion object {
         val TV = AppDimensions(
+            profile = DeviceUiProfile.TV,
             vodCardWidth = 200.dp,
             vodCardImageSize = 400,
             channelCardHeight = 170.dp,
@@ -111,6 +114,7 @@ data class AppDimensions(
         )
 
         val Handheld = AppDimensions(
+            profile = DeviceUiProfile.HANDHELD,
             vodCardWidth = 120.dp,
             vodCardImageSize = 240,
             channelCardHeight = 100.dp,
@@ -151,7 +155,56 @@ data class AppDimensions(
             menuPanelWidth = 200.dp,
             heroHeight = 96.dp,
         )
+
+        val ThorBottom = AppDimensions(
+            profile = DeviceUiProfile.THOR_BOTTOM,
+            vodCardWidth = 104.dp,
+            vodCardImageSize = 208,
+            channelCardHeight = 76.dp,
+            channelAvatarSize = 28.dp,
+            channelNameFontSp = 11f,
+            homeLogoFontSp = 16f,
+            homePad = 10.dp,
+            homeGridMaxWidth = 360.dp,
+            screenHPad = 8.dp,
+            rowSpacing = 8.dp,
+            rowLabelFontSp = 11f,
+            headerFontSp = 14f,
+            searchPad = 10.dp,
+            searchTitleFontSp = 16f,
+            searchInputFontSp = 12f,
+            searchChunkSize = 2,
+            detailHPad = 10.dp,
+            detailVPad = 8.dp,
+            detailTitleFontSp = 12f,
+            detailRadialRadius = 280f,
+            playerHPad = 10.dp,
+            playerVPad = 8.dp,
+            playerTitleFontSp = 12f,
+            playerTimeFontSp = 10f,
+            playerSeekFontSp = 15f,
+            playerSeekPreviewWidth = 84.dp,
+            playerPauseSize = 40.dp,
+            playerPauseFontSp = 16f,
+            playerUpNextWidth = 144.dp,
+            playerUpNextPad = 8.dp,
+            authHPad = 12.dp,
+            authVPad = 8.dp,
+            authQrSize = 88.dp,
+            authLogoFontSp = 16f,
+            authStatusFontSp = 11f,
+            settingsPad = 10.dp,
+            settingsTitleFontSp = 16f,
+            menuPanelWidth = 160.dp,
+            heroHeight = 82.dp,
+        )
     }
+}
+
+enum class DeviceUiProfile {
+    TV,
+    HANDHELD,
+    THOR_BOTTOM
 }
 
 val LocalAppDimensions = staticCompositionLocalOf { AppDimensions.TV }
@@ -159,5 +212,11 @@ val LocalAppDimensions = staticCompositionLocalOf { AppDimensions.TV }
 @Composable
 fun rememberAppDimensions(): AppDimensions {
     val config = LocalConfiguration.current
-    return if (config.screenWidthDp < 500) AppDimensions.Handheld else AppDimensions.TV
+    val width = config.screenWidthDp
+    val height = config.screenHeightDp
+    return when {
+        width <= 420 && height <= 380 -> AppDimensions.ThorBottom
+        width < 500 -> AppDimensions.Handheld
+        else -> AppDimensions.TV
+    }
 }

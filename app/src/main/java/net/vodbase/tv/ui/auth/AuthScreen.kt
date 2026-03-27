@@ -28,6 +28,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.vodbase.tv.data.repository.AuthRepository
+import net.vodbase.tv.ui.theme.DeviceUiProfile
 import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
@@ -137,7 +138,7 @@ fun AuthScreen(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 8.dp else 12.dp)
         ) {
             // Logo
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -180,7 +181,9 @@ fun AuthScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            if (dims.profile != DeviceUiProfile.THOR_BOTTOM) {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
 
             // Skip button
             Button(
@@ -190,7 +193,10 @@ fun AuthScreen(
                     contentColor = Color(0xFF7A7A9A)
                 )
             ) {
-                Text("Continue without signing in", fontSize = 14.sp)
+                Text(
+                    if (dims.profile == DeviceUiProfile.THOR_BOTTOM) "Continue offline" else "Continue without signing in",
+                    fontSize = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 11.sp else 14.sp
+                )
             }
         }
     }

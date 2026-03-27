@@ -30,6 +30,7 @@ import coil.compose.AsyncImage
 import net.vodbase.tv.data.model.Channel
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelThemes
+import net.vodbase.tv.ui.theme.DeviceUiProfile
 import net.vodbase.tv.ui.theme.LocalAppDimensions
 
 @Composable
@@ -56,55 +57,160 @@ fun HomeScreen(
             .padding(horizontal = dims.homePad, vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(if (dims.homePad < 24.dp) 8.dp else 14.dp)
-        ) {
-            // Logo with gradient
-            Text(
-                "VODBASE",
-                fontSize = dims.homeLogoFontSp.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = (-2).sp,
-                style = TextStyle(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFFF4444),
-                            Color(0xFFFF6666),
-                            Color.White
+        if (dims.profile == DeviceUiProfile.THOR_BOTTOM) {
+            ThorBottomHomeScreen(
+                onChannelSelected = onChannelSelected,
+                onSearch = onSearch
+            )
+        } else {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(if (dims.homePad < 24.dp) 8.dp else 14.dp)
+            ) {
+                // Logo with gradient
+                Text(
+                    "VODBASE",
+                    fontSize = dims.homeLogoFontSp.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-2).sp,
+                    style = TextStyle(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFFFF4444),
+                                Color(0xFFFF6666),
+                                Color.White
+                            )
                         )
                     )
                 )
-            )
 
-            // Channel grid - 2x2
-            Column(
-                verticalArrangement = Arrangement.spacedBy(if (dims.homePad < 24.dp) 6.dp else 10.dp),
-                modifier = Modifier.widthIn(max = dims.homeGridMaxWidth)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+                // Channel grid - 2x2
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(if (dims.homePad < 24.dp) 6.dp else 10.dp),
+                    modifier = Modifier.widthIn(max = dims.homeGridMaxWidth)
                 ) {
-                    ChannelCard(Channel.JERMA, Modifier.weight(1f)) { onChannelSelected(it.id) }
-                    ChannelCard(Channel.SIPS, Modifier.weight(1f)) { onChannelSelected(it.id) }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ChannelCard(Channel.JERMA, Modifier.weight(1f)) { onChannelSelected(it.id) }
+                        ChannelCard(Channel.SIPS, Modifier.weight(1f)) { onChannelSelected(it.id) }
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ChannelCard(Channel.NL, Modifier.weight(1f)) { onChannelSelected(it.id) }
+                        ChannelCard(Channel.MOONMOON, Modifier.weight(1f)) { onChannelSelected(it.id) }
+                    }
                 }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ChannelCard(Channel.NL, Modifier.weight(1f)) { onChannelSelected(it.id) }
-                    ChannelCard(Channel.MOONMOON, Modifier.weight(1f)) { onChannelSelected(it.id) }
+
+                if (onSearch != null) {
+                    Text(
+                        "Press Search to find VODs",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.25f)
+                    )
                 }
             }
+        }
+    }
+}
 
-            if (onSearch != null) {
-                Text(
-                    "Press Search to find VODs",
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.25f)
+@Composable
+private fun ThorBottomHomeScreen(
+    onChannelSelected: (String) -> Unit,
+    onSearch: (() -> Unit)?
+) {
+    val dims = LocalAppDimensions.current
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "VODBASE",
+            fontSize = dims.homeLogoFontSp.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-1).sp,
+            style = TextStyle(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFFF4444),
+                        Color(0xFFFF6666),
+                        Color.White
+                    )
                 )
-            }
+            )
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            ThorChannelPill(Channel.JERMA, Modifier.weight(1f)) { onChannelSelected(it.id) }
+            ThorChannelPill(Channel.SIPS, Modifier.weight(1f)) { onChannelSelected(it.id) }
+            ThorChannelPill(Channel.NL, Modifier.weight(1f)) { onChannelSelected(it.id) }
+            ThorChannelPill(Channel.MOONMOON, Modifier.weight(1f)) { onChannelSelected(it.id) }
+        }
+
+        if (onSearch != null) {
+            Text(
+                "Search button opens VOD search",
+                fontSize = 10.sp,
+                color = Color.White.copy(alpha = 0.35f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThorChannelPill(
+    channel: Channel,
+    modifier: Modifier = Modifier,
+    onClick: (Channel) -> Unit
+) {
+    val theme = ChannelThemes.forChannel(channel)
+    var isFocused by remember { mutableStateOf(false) }
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) theme.focusRing else theme.primary.copy(alpha = 0.2f),
+        animationSpec = tween(AnimationConstants.COLOR_DURATION_MS),
+        label = "thorPillBorder"
+    )
+    val bgAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 0.22f else 0.1f,
+        animationSpec = tween(AnimationConstants.COLOR_DURATION_MS),
+        label = "thorPillAlpha"
+    )
+
+    Box(
+        modifier = modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(theme.primary.copy(alpha = bgAlpha))
+            .border(1.5.dp, borderColor, RoundedCornerShape(14.dp))
+            .onFocusChanged { isFocused = it.isFocused }
+            .clickable { onClick(channel) }
+            .padding(horizontal = 6.dp, vertical = 5.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(theme.primary)
+            )
+            Text(
+                text = channel.displayName.take(6),
+                fontSize = 9.sp,
+                fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
+                color = Color.White,
+                maxLines = 1
+            )
         }
     }
 }

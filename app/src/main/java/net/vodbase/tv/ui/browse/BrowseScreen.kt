@@ -44,6 +44,7 @@ import net.vodbase.tv.data.repository.VodRepository
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
 import net.vodbase.tv.ui.theme.ChannelThemes
+import net.vodbase.tv.ui.theme.DeviceUiProfile
 import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
@@ -223,9 +224,14 @@ fun BrowseScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = dims.screenHPad, vertical = 4.dp),
+                            .padding(
+                                horizontal = dims.screenHPad,
+                                vertical = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 0.dp else 4.dp
+                            ),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(
+                            if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 6.dp else 10.dp
+                        )
                     ) {
                         Text(
                             theme.channelName,
@@ -236,7 +242,7 @@ fun BrowseScreen(
                         if (viewModel.totalVods > 0) {
                             Text(
                                 "${viewModel.totalVods} VODs",
-                                fontSize = 13.sp,
+                                fontSize = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 10.sp else 13.sp,
                                 color = theme.onSurface.copy(alpha = 0.3f)
                             )
                         }
@@ -255,11 +261,14 @@ fun BrowseScreen(
                                     interactionSource = shuffleInteraction,
                                     indication = null
                                 ) { onShuffle() }
-                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                .padding(
+                                    horizontal = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 8.dp else 14.dp,
+                                    vertical = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 4.dp else 6.dp
+                                )
                         ) {
                             Text(
                                 "Shuffle",
-                                fontSize = 13.sp,
+                                fontSize = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 10.sp else 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (shuffleFocused) theme.background else theme.primary
                             )
@@ -284,14 +293,19 @@ fun BrowseScreen(
                     Column() {
                         Text(
                             row.title,
-                            modifier = Modifier.padding(start = dims.screenHPad, bottom = 8.dp),
+                            modifier = Modifier.padding(
+                                start = dims.screenHPad,
+                                bottom = if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 4.dp else 8.dp
+                            ),
                             fontSize = dims.rowLabelFontSp.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = theme.onSurface.copy(alpha = 0.9f)
                         )
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = dims.screenHPad),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(
+                                if (dims.profile == DeviceUiProfile.THOR_BOTTOM) 8.dp else 12.dp
+                            )
                         ) {
                             items(row.vods, key = { it.id }) { vod ->
                                 VodCard(
