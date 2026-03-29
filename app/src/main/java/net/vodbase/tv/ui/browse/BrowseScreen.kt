@@ -465,10 +465,11 @@ fun ContinueWatchingHero(
                             info.vod.gameContent?.let {
                                 Box(
                                     modifier = Modifier
+                                        .weight(1f, fill = false)
                                         .background(theme.surface, theme.shape)
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
-                                    Text(it, fontSize = badgeFontSp, color = theme.onSurface.copy(alpha = 0.5f))
+                                    Text(it, fontSize = badgeFontSp, color = theme.onSurface.copy(alpha = 0.5f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
