@@ -215,7 +215,7 @@ fun rememberAppDimensions(): AppDimensions {
     val width = config.screenWidthDp
     val height = config.screenHeightDp
     return when {
-        width <= 420 && height <= 380 -> AppDimensions.ThorBottom
+        width <= 420 && height <= 420 -> AppDimensions.ThorBottom
         width < 500 -> AppDimensions.Handheld
         else -> AppDimensions.TV
     }
