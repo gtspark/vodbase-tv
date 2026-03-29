@@ -1,6 +1,7 @@
 package net.vodbase.tv.ui.theme
 
 import android.content.res.Configuration
+import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalConfiguration
@@ -213,9 +214,9 @@ val LocalAppDimensions = staticCompositionLocalOf { AppDimensions.TV }
 fun rememberAppDimensions(): AppDimensions {
     val config = LocalConfiguration.current
     val width = config.screenWidthDp
-    val height = config.screenHeightDp
+    val isThorDevice = Build.MODEL.contains("Thor", ignoreCase = true)
     return when {
-        width <= 420 && height <= 420 -> AppDimensions.ThorBottom
+        isThorDevice && width < 500 -> AppDimensions.ThorBottom
         width < 500 -> AppDimensions.Handheld
         else -> AppDimensions.TV
     }
