@@ -199,7 +199,6 @@ fun VodDetailCard(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 MetaBadge(vod.duration, theme)
                 MetaBadge(vod.era, theme)
-                vod.gameContent?.let { MetaBadge(it, theme) }
             }
 
             vod.formattedDate?.let { date ->
