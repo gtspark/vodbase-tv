@@ -26,8 +26,8 @@ android {
         applicationId = "net.vodbase.tv"
         minSdk = 25  // Fire TV 2nd gen+
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.2.2"
+        versionCode = 6
+        versionName = "1.2.3-debug"
     }
 
     buildTypes {

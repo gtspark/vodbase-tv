@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import android.os.Build
+import androidx.compose.ui.platform.LocalConfiguration
 import net.vodbase.tv.data.model.Channel
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelThemes
@@ -39,6 +41,8 @@ fun HomeScreen(
     onSearch: (() -> Unit)? = null
 ) {
     val dims = LocalAppDimensions.current
+    val dbgConfig = LocalConfiguration.current
+    val dbgInfo = "M:${Build.MODEL} W:${dbgConfig.screenWidthDp} H:${dbgConfig.screenHeightDp} P:${dims.profile}"
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -114,6 +118,14 @@ fun HomeScreen(
                 }
             }
         }
+
+        // DEBUG: remove after confirming detection works
+        Text(
+            dbgInfo,
+            fontSize = 8.sp,
+            color = Color.Yellow.copy(alpha = 0.7f),
+            modifier = Modifier.align(Alignment.BottomStart)
+        )
     }
 }
 
