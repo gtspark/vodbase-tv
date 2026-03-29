@@ -216,7 +216,7 @@ fun rememberAppDimensions(): AppDimensions {
     val width = config.screenWidthDp
     val isThorDevice = Build.MODEL.contains("Thor", ignoreCase = true)
     return when {
-        isThorDevice && width < 500 -> AppDimensions.ThorBottom
+        isThorDevice && width < 600 -> AppDimensions.ThorBottom
         width < 500 -> AppDimensions.Handheld
         else -> AppDimensions.TV
     }
