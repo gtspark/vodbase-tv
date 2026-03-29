@@ -353,6 +353,12 @@ fun ContinueWatchingHero(
     val secs = (info.currentTime % 60).toInt()
     val totalMins = (info.duration / 60).toInt()
 
+    val infoPadding = if (isThor) 10.dp else 16.dp
+    val titleFontSp = if (isThor) 13.sp else 15.sp
+    val titleLineHeight = if (isThor) 16.sp else 19.sp
+    val timeFontSp = if (isThor) 11.sp else 13.sp
+    val badgeFontSp = if (isThor) 10.sp else 11.sp
+
     Column(modifier = Modifier.padding(horizontal = dims.screenHPad)) {
         Text(
             "Continue Watching",
@@ -365,7 +371,7 @@ fun ContinueWatchingHero(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(if (isThor) Modifier else Modifier.height(dims.heroHeight))
+                .height(dims.heroHeight)
                 .graphicsLayer { scaleX = scale; scaleY = scale }
                 .clip(theme.shape)
                 .background(theme.surface)
@@ -378,172 +384,91 @@ fun ContinueWatchingHero(
                 .onFocusChanged { isFocused = it.isFocused }
                 .clickable { onResume() }
         ) {
-            if (isThor) {
-                // Thor: compact horizontal layout — thumbnail left, title + resume right
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Small thumbnail with progress bar
+            Row(modifier = Modifier.fillMaxSize()) {
+                // Large thumbnail
+                Box(modifier = Modifier.weight(1.2f).fillMaxHeight()) {
+                    AsyncImage(
+                        model = info.vod.thumbnail,
+                        contentDescription = info.vod.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    // Progress bar overlay at bottom of thumbnail
                     Box(
                         modifier = Modifier
-                            .width(80.dp)
-                            .aspectRatio(16f / 9f)
-                            .clip(theme.shape)
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .background(Color.Black.copy(alpha = 0.5f))
                     ) {
-                        AsyncImage(
-                            model = info.vod.thumbnail,
-                            contentDescription = info.vod.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
                         Box(
                             modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .fillMaxWidth()
-                                .height(2.dp)
-                                .background(Color.Black.copy(alpha = 0.5f))
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(progressFraction)
-                                    .background(theme.primary)
-                            )
-                        }
-                    }
-
-                    // Title + time — fills remaining space
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            info.vod.title,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = titleColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 13.sp
+                                .fillMaxHeight()
+                                .fillMaxWidth(progressFraction)
+                                .background(theme.primary)
                         )
-                        Text(
-                            "${mins}:${"%02d".format(secs)} / ${totalMins} min",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = theme.primary
-                        )
-                    }
-
-                    // Resume badge
-                    Crossfade(
-                        targetState = isFocused,
-                        animationSpec = tween(durationMillis = AnimationConstants.COLOR_DURATION_MS),
-                        label = "heroBadgeCrossfade"
-                    ) { focused ->
-                        Box(
-                            modifier = Modifier
-                                .background(theme.primary.copy(alpha = if (focused) 0.3f else 0.15f), theme.shape)
-                                .padding(horizontal = 6.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                if (focused) "▶" else info.vod.era,
-                                fontSize = 10.sp,
-                                fontWeight = if (focused) FontWeight.Bold else FontWeight.Normal,
-                                color = if (focused) theme.primary else theme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
                     }
                 }
-            } else {
-                // TV / Handheld: side-by-side Row layout
-                Row(modifier = Modifier.fillMaxSize()) {
-                    // Large thumbnail
-                    Box(modifier = Modifier.weight(1.2f).fillMaxHeight()) {
-                        AsyncImage(
-                            model = info.vod.thumbnail,
-                            contentDescription = info.vod.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
 
-                        // Progress bar overlay at bottom of thumbnail
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .background(Color.Black.copy(alpha = 0.5f))
-                        ) {
+                // Info panel
+                Column(
+                    modifier = Modifier
+                        .weight(0.8f)
+                        .fillMaxHeight()
+                        .padding(infoPadding),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        info.vod.title,
+                        fontSize = titleFontSp,
+                        fontWeight = FontWeight.Bold,
+                        color = titleColor,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = titleLineHeight
+                    )
+
+                    Spacer(modifier = Modifier.height(if (isThor) 4.dp else 6.dp))
+
+                    // Resume time
+                    Text(
+                        "${mins}:${"%02d".format(secs)} / ${totalMins} min",
+                        fontSize = timeFontSp,
+                        fontWeight = FontWeight.Medium,
+                        color = theme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Meta badges
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Crossfade(
+                            targetState = isFocused,
+                            animationSpec = tween(durationMillis = AnimationConstants.COLOR_DURATION_MS),
+                            label = "heroBadgeCrossfade"
+                        ) { focused ->
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(progressFraction)
-                                    .background(theme.primary)
-                            )
+                                    .background(theme.primary.copy(alpha = 0.15f), theme.shape)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    if (focused) "Resume" else info.vod.era,
+                                    fontSize = badgeFontSp,
+                                    fontWeight = if (focused) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (focused) theme.primary else theme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
                         }
-                    }
-
-                    // Info panel
-                    Column(
-                        modifier = Modifier
-                            .weight(0.8f)
-                            .fillMaxHeight()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            info.vod.title,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = titleColor,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 19.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        // Resume time
-                        Text(
-                            "${mins}:${"%02d".format(secs)} / ${totalMins} min",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = theme.primary
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Meta badges
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Crossfade(
-                                targetState = isFocused,
-                                animationSpec = tween(durationMillis = AnimationConstants.COLOR_DURATION_MS),
-                                label = "heroBadgeCrossfade"
-                            ) { focused ->
+                        if (!isFocused) {
+                            info.vod.gameContent?.let {
                                 Box(
                                     modifier = Modifier
-                                        .background(theme.primary.copy(alpha = 0.15f), theme.shape)
+                                        .background(theme.surface, theme.shape)
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
-                                    Text(
-                                        if (focused) "Resume" else info.vod.era,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (focused) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (focused) theme.primary else theme.onSurface.copy(alpha = 0.6f)
-                                    )
-                                }
-                            }
-                            if (!isFocused) {
-                                info.vod.gameContent?.let {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(theme.surface, theme.shape)
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(it, fontSize = 11.sp, color = theme.onSurface.copy(alpha = 0.5f))
-                                    }
+                                    Text(it, fontSize = badgeFontSp, color = theme.onSurface.copy(alpha = 0.5f))
                                 }
                             }
                         }

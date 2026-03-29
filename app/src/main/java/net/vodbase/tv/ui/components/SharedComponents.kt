@@ -151,67 +151,7 @@ fun VodDetailCard(
     actions: @Composable ColumnScope.() -> Unit
 ) {
     val dims = LocalAppDimensions.current
-    val isThor = dims.profile == DeviceUiProfile.THOR_BOTTOM
     val arrangement = if (dims.detailHPad < 24.dp) 12.dp else 24.dp
-
-    if (isThor) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            AsyncImage(
-                model = vod.thumbnail,
-                contentDescription = vod.title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(theme.shape),
-                contentScale = ContentScale.Crop
-            )
-
-            Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                if (label != null) {
-                    Text(
-                        label,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = theme.primary.copy(alpha = 0.8f),
-                        letterSpacing = 1.sp
-                    )
-                }
-
-                Text(
-                    vod.title,
-                    fontSize = dims.detailTitleFontSp.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = theme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = (dims.detailTitleFontSp * 1.15f).sp
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MetaBadge(vod.duration, theme)
-                    MetaBadge(vod.era, theme)
-                }
-
-                vod.series?.let { series ->
-                    Text(
-                        "Part ${series.part}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = theme.primary
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-                actions()
-            }
-        }
-        return
-    }
 
     Row(
         modifier = Modifier.fillMaxSize(),
