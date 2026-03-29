@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -34,6 +35,7 @@ import net.vodbase.tv.data.repository.AuthRepository
 import net.vodbase.tv.data.repository.SettingsRepository
 import net.vodbase.tv.ui.theme.AnimationConstants
 import net.vodbase.tv.ui.theme.ChannelTheme
+import net.vodbase.tv.ui.theme.DeviceUiProfile
 import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
@@ -269,6 +271,8 @@ private fun SettingRow(
     autoFocus: Boolean = false,
     destructive: Boolean = false
 ) {
+    val dims = LocalAppDimensions.current
+    val isThor = dims.profile == DeviceUiProfile.THOR_BOTTOM
     val accentColor = if (destructive) Color(0xFFCC4444) else theme.primary
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -310,30 +314,40 @@ private fun SettingRow(
                 interactionSource = interactionSource,
                 indication = null
             ) { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(
+                horizontal = if (isThor) 10.dp else 16.dp,
+                vertical = if (isThor) 8.dp else 12.dp
+            ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             label,
-            fontSize = 15.sp,
+            fontSize = if (isThor) 11.sp else 15.sp,
             fontWeight = FontWeight.Medium,
             color = if (destructive && isFocused) accentColor
                     else if (isFocused) Color.White
-                    else theme.onSurface.copy(alpha = 0.85f)
+                    else theme.onSurface.copy(alpha = 0.85f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
         )
         if (value.isNotEmpty()) {
+            Spacer(modifier = Modifier.width(8.dp))
             Box(
                 modifier = Modifier
                     .background(
                         if (isFocused) accentColor else accentColor.copy(alpha = 0.2f),
                         theme.shape
                     )
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .padding(
+                        horizontal = if (isThor) 6.dp else 10.dp,
+                        vertical = if (isThor) 3.dp else 4.dp
+                    )
             ) {
                 Text(
                     value,
-                    fontSize = 13.sp,
+                    fontSize = if (isThor) 10.sp else 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isFocused) theme.background else accentColor
                 )

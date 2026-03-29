@@ -68,6 +68,7 @@ import net.vodbase.tv.data.repository.SettingsRepository
 import net.vodbase.tv.data.repository.VodRepository
 import net.vodbase.tv.player.StreamExtractor
 import net.vodbase.tv.ui.theme.ChannelThemes
+import net.vodbase.tv.ui.theme.DeviceUiProfile
 import net.vodbase.tv.ui.theme.LocalAppDimensions
 import javax.inject.Inject
 
@@ -510,6 +511,7 @@ fun PlayerScreen(
     val context = LocalContext.current
     val theme = ChannelThemes.forChannelId(channel)
     val dims = LocalAppDimensions.current
+    val isThor = dims.profile == DeviceUiProfile.THOR_BOTTOM
     var exoPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
     val focusRequester = remember { FocusRequester() }
     var boxWidth by remember { mutableStateOf(0f) }
@@ -875,55 +877,64 @@ fun PlayerScreen(
                     Column(
                         modifier = Modifier
                             .width(dims.playerUpNextWidth)
-                            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
-                            .padding(16.dp)
+                            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(if (isThor) 8.dp else 12.dp))
+                            .padding(if (isThor) 8.dp else 16.dp)
                     ) {
                         Text(
                             "Up Next",
-                            fontSize = 13.sp,
+                            fontSize = if (isThor) 10.sp else 13.sp,
                             color = theme.primary,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(Modifier.height(6.dp))
+                        Spacer(Modifier.height(if (isThor) 4.dp else 6.dp))
                         AsyncImage(
                             model = nextVod.thumbnail,
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(16f / 9f)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(RoundedCornerShape(if (isThor) 4.dp else 8.dp)),
                             contentScale = ContentScale.Crop
                         )
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(if (isThor) 4.dp else 8.dp))
                         Text(
                             nextVod.title,
-                            fontSize = 14.sp,
+                            fontSize = if (isThor) 10.sp else 14.sp,
                             color = Color.White,
-                            maxLines = 2,
+                            maxLines = if (isThor) 1 else 2,
                             overflow = TextOverflow.Ellipsis
                         )
                         nextVod.series?.let {
                             Text(
                                 "Part ${it.part}",
-                                fontSize = 12.sp,
+                                fontSize = if (isThor) 9.sp else 12.sp,
                                 color = theme.primary.copy(alpha = 0.7f)
                             )
                         }
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        Spacer(Modifier.height(if (isThor) 4.dp else 8.dp))
+                        if (isThor) {
                             Text(
-                                "Playing in ${viewModel.upNextCountdown}s",
-                                fontSize = 13.sp,
-                                color = Color.White.copy(alpha = 0.6f)
+                                "In ${viewModel.upNextCountdown}s · OK to play",
+                                fontSize = 9.sp,
+                                color = theme.primary,
+                                maxLines = 1
                             )
-                            Text(
-                                "OK to play now",
-                                fontSize = 13.sp,
-                                color = theme.primary
-                            )
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    "Playing in ${viewModel.upNextCountdown}s",
+                                    fontSize = 13.sp,
+                                    color = Color.White.copy(alpha = 0.6f)
+                                )
+                                Text(
+                                    "OK to play now",
+                                    fontSize = 13.sp,
+                                    color = theme.primary
+                                )
+                            }
                         }
                     }
                 }

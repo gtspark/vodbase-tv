@@ -44,6 +44,8 @@ fun ActionButton(
     enabled: Boolean = true,
     autoFocus: Boolean = false
 ) {
+    val dims = LocalAppDimensions.current
+    val isThor = dims.profile == DeviceUiProfile.THOR_BOTTOM
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val borderAlpha by animateFloatAsState(
@@ -103,13 +105,16 @@ fun ActionButton(
                 ) { onClick() }
                 else Modifier.focusable(interactionSource = interactionSource)
             )
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(
+                horizontal = if (isThor) 10.dp else 16.dp,
+                vertical = if (isThor) 6.dp else 10.dp
+            ),
         contentAlignment = Alignment.CenterStart
     ) {
         Text(
             text,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
+            fontSize = if (isThor) 11.sp else 14.sp,
             color = if (!enabled) textColor.copy(alpha = 0.5f) else textColor
         )
     }

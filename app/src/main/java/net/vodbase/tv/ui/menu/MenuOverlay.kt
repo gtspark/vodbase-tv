@@ -22,7 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.vodbase.tv.ui.components.ActionButton
+import androidx.compose.ui.text.style.TextOverflow
 import net.vodbase.tv.ui.theme.ChannelTheme
+import net.vodbase.tv.ui.theme.DeviceUiProfile
 import net.vodbase.tv.ui.theme.LocalAppDimensions
 
 private val PanelBackground = Color(0xFF1A1A1A)
@@ -46,6 +48,7 @@ fun MenuOverlay(
 ) {
     if (isVisible) {
         val dims = LocalAppDimensions.current
+        val isThor = dims.profile == DeviceUiProfile.THOR_BOTTOM
         val focusRequester = remember { FocusRequester() }
 
         // Request focus on the panel when it opens
@@ -96,31 +99,32 @@ fun MenuOverlay(
                         )
                         .focusRequester(focusRequester)
                         .focusable()
-                        .padding(24.dp),
+                        .padding(if (isThor) 12.dp else 24.dp),
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     // Title
                     Text(
                         "VodBase",
-                        fontSize = 22.sp,
+                        fontSize = if (isThor) 16.sp else 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = theme.primary
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(if (isThor) 8.dp else 16.dp))
 
                     Divider(color = Color.White.copy(alpha = 0.12f))
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(if (isThor) 10.dp else 20.dp))
 
                     // Auth section
                     if (userEmail != null) {
                         Text(
                             userEmail,
-                            fontSize = 13.sp,
+                            fontSize = if (isThor) 10.sp else 13.sp,
                             color = Color.White.copy(alpha = 0.7f),
                             maxLines = 1,
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(bottom = if (isThor) 6.dp else 12.dp)
                         )
                         ActionButton(
                             text = "Sign Out",
@@ -136,7 +140,7 @@ fun MenuOverlay(
                             "Not signed in",
                             fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.45f),
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            modifier = Modifier.padding(bottom = if (isThor) 6.dp else 12.dp)
                         )
                         ActionButton(
                             text = "Sign In",
@@ -175,31 +179,31 @@ fun MenuOverlay(
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(if (isThor) 8.dp else 16.dp))
 
                     Divider(color = Color.White.copy(alpha = 0.12f))
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(if (isThor) 10.dp else 20.dp))
 
                     // About section
                     Text(
                         "About",
-                        fontSize = 11.sp,
+                        fontSize = if (isThor) 9.sp else 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White.copy(alpha = 0.4f),
                         letterSpacing = 1.sp,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = if (isThor) 4.dp else 8.dp)
                     )
 
                     Text(
-                        "VodBase for Fire TV",
-                        fontSize = 14.sp,
+                        if (isThor) "VodBase" else "VodBase for Fire TV",
+                        fontSize = if (isThor) 11.sp else 14.sp,
                         color = Color.White
                     )
 
                     Text(
-                        "v1.0.0",
-                        fontSize = 12.sp,
+                        "v1.1.0",
+                        fontSize = if (isThor) 10.sp else 12.sp,
                         color = Color.White.copy(alpha = 0.4f),
                         modifier = Modifier.padding(top = 2.dp)
                     )
